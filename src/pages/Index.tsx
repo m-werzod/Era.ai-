@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@/shared/routing";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/features/auth";
-import { ArrowUp, Star } from "lucide-react";
+import { ArrowUp, ArrowRight, Star } from "lucide-react";
 import { Eyebrow, ModelGlyph } from "@/shared/ui/era";
 import { PromptWindow, type GenType } from "@/components/workspace/PromptWindow";
 
@@ -89,22 +89,24 @@ const Index = () => {
           }}
         />
         <motion.div
-          className="relative max-w-3xl mx-auto text-center px-4 pt-20 pb-10 md:pt-28 md:pb-14"
+          className="relative max-w-3xl mx-auto text-center px-4 pt-16 pb-10 md:pt-24 md:pb-12"
           initial="hidden"
           animate="show"
           variants={stagger}
         >
-          <motion.div variants={fadeUp} className="mb-5 inline-block">
+          <motion.div variants={fadeUp} className="mb-4 inline-block">
             <Eyebrow>{t("home.hero.eyebrow")}</Eyebrow>
           </motion.div>
+
           <motion.h1
             variants={fadeUp}
-            className="text-[32px] md:text-[52px] font-bold leading-[1.05] tracking-tight mb-6 text-balance"
+            className="text-[38px] md:text-[60px] lg:text-[68px] font-bold leading-[1.02] tracking-tight mb-5 text-balance"
           >
             {t("home.hero.titleLine1")}
             <br />
             <span className="gradient-accent-text">{t("home.hero.titleLine2")}</span>
           </motion.h1>
+
           <motion.p
             variants={fadeUp}
             className="text-muted-foreground text-base md:text-lg max-w-xl mx-auto mb-7 leading-relaxed"
@@ -112,29 +114,72 @@ const Index = () => {
             {t("home.hero.subtitle")}
           </motion.p>
 
+          {/* ── CTA buttons ── */}
           <motion.div
             variants={fadeUp}
-            className="flex items-center justify-center gap-2.5 mb-5"
+            className="flex flex-wrap items-center justify-center gap-3 mb-8"
           >
-            {PROOF_MODELS.map((m) => (
-              <ModelGlyph key={m} name={m} size={30} />
-            ))}
+            <Link
+              to={ctaLink}
+              className="inline-flex items-center gap-2 h-12 px-7 rounded-full text-[15px] font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)",
+                boxShadow: "0 8px 28px -6px rgba(232,84,32,0.55)",
+              }}
+            >
+              {t("home.hero.ctaStart")}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/tools/text-generation"
+              className="inline-flex items-center gap-2 h-12 px-6 rounded-full text-[15px] font-medium border transition-all hover:bg-secondary"
+              style={{ borderColor: "hsl(var(--border))", color: "var(--c-fg)" }}
+            >
+              {t("nav.common.allModels")}
+            </Link>
           </motion.div>
 
+          {/* ── Model logos ── */}
           <motion.div
             variants={fadeUp}
-            className="flex flex-wrap items-center justify-center gap-1.5 text-sm text-muted-foreground"
+            className="flex items-center justify-center gap-2 mb-6 flex-wrap"
           >
-            <div className="flex">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="h-4 w-4 fill-[#ffb27a] text-[#ffb27a]" />
-              ))}
+            {PROOF_MODELS.map((m) => (
+              <ModelGlyph key={m} name={m} size={32} />
+            ))}
+            <span className="text-xs text-muted-foreground ml-1">+84 {t("nav.common.allModels").split(" ").pop()}</span>
+          </motion.div>
+
+          {/* ── Social proof pills ── */}
+          <motion.div
+            variants={fadeUp}
+            className="flex flex-wrap items-center justify-center gap-2.5 text-sm"
+          >
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+            >
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-[#ffb27a] text-[#ffb27a]" />
+                ))}
+              </div>
+              <span className="text-muted-foreground text-xs">{t("home.hero.badge")}</span>
             </div>
-            <span>{t("home.hero.badge")}</span>
-            <span className="mx-2 opacity-40">·</span>
-            <Link to={ctaLink} className="text-[hsl(var(--primary))] hover:underline font-medium">
-              {t("home.hero.ctaStart")}
-            </Link>
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground"
+              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              90+ нейросетей
+            </div>
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground"
+              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              Без VPN
+            </div>
           </motion.div>
         </motion.div>
 

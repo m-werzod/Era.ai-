@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, Paperclip, Send, Globe, Brain, Copy, RefreshCw, ThumbsUp, ThumbsDown, Settings, PenLine, Lightbulb, Code, Languages, Search, BarChart3 } from "lucide-react";
 import { textProviders, textQuickActions } from "@/entities/ai-model";
+import { streamChatCompletion, type ChatMessage } from "@/services/aiApi";
 import { TextModelSelector } from "@/features/model-picker";
 import { ModelIcon } from "@/features/model-picker";
 import { ModelGlyph } from "@/shared/ui/era/ModelGlyph";
@@ -41,7 +42,6 @@ interface Message {
   providerId?: string;
 }
 
-const demoReply = "Конечно! Вот несколько идей:\n\n1. **Персонализация контента** — создавайте уникальные тексты для каждого сегмента аудитории\n2. **Автоматизация рутины** — делегируйте рутинные задачи нейросетям\n3. **Мультиформатность** — один промпт, несколько форматов: текст, изображение, видео\n\nХотите, чтобы я подробнее раскрыл какой-то из пунктов?";
 
 const systemPromptPresets = ["Копирайтер", "Программист", "Учитель", "Переводчик"];
 
@@ -127,21 +127,47 @@ const TextPage = () => {
     el.style.height = Math.min(el.scrollHeight, 240) + "px";
   }, []);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = input.trim();
     if (!text || isGenerating) return;
-    setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", content: text }]);
+
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
+    const assistantId = (Date.now() + 1).toString();
+    const assistantMsg: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      model: subModel.name,
+      providerId: provider.id,
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     sessionStorage.removeItem("era2_draft_text");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsGenerating(true);
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), role: "assistant", content: demoReply, model: subModel.name, providerId: provider.id },
-      ]);
+
+    try {
+      const history: ChatMessage[] = [...messages, userMsg].map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+      const stream = streamChatCompletion(subModelId, history, systemPrompt || undefined);
+      for await (const chunk of stream) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId ? { ...m, content: `Ошибка: ${msg}` } : m,
+        ),
+      );
+    } finally {
       setIsGenerating(false);
-    }, 800);
+    }
   };
 
   const handleSelect = (pId: string, sId: string) => {

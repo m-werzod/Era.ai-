@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, Palette, Sparkles, Image as ImageIcon, Zap, Paintbrush, ChevronDown } from "lucide-react";
+import { Camera, Palette, Sparkles, Image as ImageIcon, Zap, Paintbrush, ChevronDown, AlertCircle } from "lucide-react";
+import { generateImageDallE } from "@/services/aiApi";
 import { motion, AnimatePresence } from "framer-motion";
 import { ModelGlyph } from "@/shared/ui/era/ModelGlyph";
 import { cn } from "@/shared/lib/utils";
@@ -165,28 +166,60 @@ const DesignPage = () => {
     sessionStorage.setItem("era2_draft_design", prompt);
   }, [prompt]);
 
-  const handleGenerate = () => {
+  const [genError, setGenError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
     const text = prompt.trim();
     if (!text || isGenerating) return;
     const [w, h] = ASPECT_TO_DIM[aspectRatio] || [1024, 1024];
-    const imgs = Array.from({ length: Math.max(1, quantity) }, () => ({ width: w, height: h }));
     setIsGenerating(true);
-    setTimeout(() => {
-      setGenerations((prev) => [...prev, {
-        id: Date.now().toString(),
-        prompt: text,
-        model: provider?.name || "Image",
-        subModel: subModel?.name || "",
-        createdAt: new Date(),
-        type: "image",
-        images: imgs,
-        aspect: aspectRatio,
-        quality,
-      }]);
-      setIsGenerating(false);
+    setGenError(null);
+
+    try {
+      const urls = await generateImageDallE(text, aspectRatio);
+      setGenerations((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          prompt: text,
+          model: provider?.name || "Image",
+          subModel: subModel?.name || "",
+          createdAt: new Date(),
+          type: "image",
+          images: [{ width: w, height: h }],
+          imageUrls: urls,
+          aspect: aspectRatio,
+          quality,
+        },
+      ]);
       setPrompt("");
       sessionStorage.removeItem("era2_draft_design");
-    }, 2000 + Math.random() * 2000);
+    } catch (err) {
+      if (err instanceof Error && err.message === "NO_KEY") {
+        // Demo mode — show placeholder result
+        await new Promise((r) => setTimeout(r, 1800 + Math.random() * 1200));
+        setGenerations((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            prompt: text,
+            model: provider?.name || "Image",
+            subModel: subModel?.name || "",
+            createdAt: new Date(),
+            type: "image",
+            images: [{ width: w, height: h }],
+            aspect: aspectRatio,
+            quality,
+          },
+        ]);
+        setPrompt("");
+        sessionStorage.removeItem("era2_draft_design");
+      } else {
+        setGenError(err instanceof Error ? err.message : "Ошибка генерации");
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleModelSelect = (providerId: string, subModelId: string) => {
@@ -302,6 +335,16 @@ const DesignPage = () => {
           </div>
         )}
       </div>
+
+      {/* Error banner */}
+      {genError && (
+        <div className="shrink-0 mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}>
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{genError}</span>
+          <button onClick={() => setGenError(null)} className="opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* Sticky input area */}
       <div className={cn("shrink-0 px-4 lg:px-6 pb-4 pt-1.5 bg-[var(--bg-primary)] relative z-[1]")}>

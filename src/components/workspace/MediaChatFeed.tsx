@@ -13,6 +13,7 @@ export interface MediaGeneration {
   type: "image" | "video" | "audio";
   // image
   images?: { width: number; height: number }[];
+  imageUrls?: string[];
   aspect?: string;
   quality?: string;
   // video
@@ -37,16 +38,46 @@ const WAVE_BARS = Array.from({ length: 28 }, (_, i) =>
 
 function ImageResult({ gen }: { gen: MediaGeneration }) {
   const images = gen.images && gen.images.length > 0 ? gen.images : [{ width: 1024, height: 1024 }];
+  const aspect = gen.aspect?.replace(":", "/") ?? "1/1";
+
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {images.map((img, i) => (
-        <div key={i} className="relative">
-          <Placeholder tone={i % 2 === 0 ? "rust" : "ember"} aspect="1/1" label="IMAGE" />
-          <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white">
-            {img.width}×{img.height}
-          </span>
-        </div>
-      ))}
+    <div className={`grid gap-2 ${images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+      {images.map((img, i) => {
+        const url = gen.imageUrls?.[i];
+        return (
+          <div key={i} className="relative rounded-xl overflow-hidden bg-secondary">
+            {url ? (
+              <img
+                src={url}
+                alt={gen.prompt}
+                className="w-full h-auto object-cover block"
+                style={{ aspectRatio: aspect }}
+                loading="lazy"
+              />
+            ) : (
+              <Placeholder tone={i % 2 === 0 ? "rust" : "ember"} aspect="1/1" label="IMAGE" />
+            )}
+            <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white">
+              {img.width}×{img.height}
+            </span>
+            {url && (
+              <a
+                href={url}
+                download={`era2-${gen.id}-${i}.png`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center bg-black/50 hover:bg-black/70 transition-colors"
+                title="Скачать"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 15V3M8 11l4 4 4-4M3 19h18" />
+                </svg>
+              </a>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
