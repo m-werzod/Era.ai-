@@ -68,21 +68,34 @@ const PERPLEXITY_MODELS: Record<string, string> = {
 };
 
 // ─── Pollinations.ai model mapping (free fallback) ──────────────────────────
-// Maps provider → best available Pollinations model
+// Only use models confirmed available on Pollinations as of 2025
 const POLLINATIONS_TEXT_MODEL: Record<string, string> = {
   chatgpt:    "openai",
-  claude:     "claude-hybridspace",
-  gemini:     "gemini",
+  claude:     "openai",
+  gemini:     "openai",
   deepseek:   "deepseek",
-  grok:       "openai",          // grok not public yet; fallback to openai
-  perplexity: "searchgpt",
+  grok:       "openai",
+  perplexity: "openai",
   default:    "openai",
 };
 
 // ─── SSE / stream helpers ────────────────────────────────────────────────────
 
 async function* parseOpenAIStream(res: Response): AsyncGenerator<string> {
-  const reader = res.body!.getReader();
+  // No streaming body — parse as a single JSON or text response
+  if (!res.body) {
+    const text = await res.text();
+    try {
+      const j = JSON.parse(text) as { choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }> };
+      const t = j.choices?.[0]?.message?.content ?? j.choices?.[0]?.delta?.content;
+      if (t) yield t;
+    } catch {
+      if (text.trim()) yield text.trim();
+    }
+    return;
+  }
+
+  const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
   while (true) {
@@ -96,10 +109,10 @@ async function* parseOpenAIStream(res: Response): AsyncGenerator<string> {
       const raw = line.slice(6).trim();
       if (raw === "[DONE]") return;
       try {
-        const p = JSON.parse(raw) as { choices?: [{ delta?: { content?: string } }] };
-        const t = p.choices?.[0]?.delta?.content;
+        const p = JSON.parse(raw) as { choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }> };
+        const t = p.choices?.[0]?.delta?.content ?? p.choices?.[0]?.message?.content;
         if (t) yield t;
-      } catch { /* skip */ }
+      } catch { /* skip malformed lines */ }
     }
   }
 }
@@ -127,33 +140,59 @@ async function* openAICompatible(
   yield* parseOpenAIStream(res);
 }
 
-// ─── Pollinations.ai free text streaming ────────────────────────────────────
+// ─── Pollinations.ai free text ───────────────────────────────────────────────
 
 async function* streamPollinations(
   providerId: string,
   messages: ChatMessage[],
   systemPrompt?: string,
 ): AsyncGenerator<string> {
-  const model = POLLINATIONS_TEXT_MODEL[providerId] ?? POLLINATIONS_TEXT_MODEL.default;
+  const model = POLLINATIONS_TEXT_MODEL[providerId] ?? "openai";
   const msgs: ChatMessage[] = [];
   if (systemPrompt?.trim()) msgs.push({ role: "system", content: systemPrompt });
   msgs.push(...messages.filter((m) => m.role !== "system"));
 
-  const res = await fetch("https://text.pollinations.ai/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: msgs,
-      model,
-      stream: true,
-      seed: Math.floor(Math.random() * 999999),
-    }),
-  });
+  let yielded = false;
 
-  if (!res.ok) throw new Error(`Pollinations error ${res.status}`);
+  // ── Attempt 1: streaming POST (OpenAI-compatible SSE) ──────────────────────
+  try {
+    const res = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: msgs,
+        model,
+        stream: true,
+        seed: Math.floor(Math.random() * 999999),
+      }),
+    });
+    if (res.ok) {
+      for await (const chunk of parseOpenAIStream(res)) {
+        yield chunk;
+        yielded = true;
+      }
+    }
+  } catch { /* network error / CORS — fall through to GET */ }
 
-  // Pollinations returns OpenAI-compatible SSE
-  yield* parseOpenAIStream(res);
+  if (yielded) return;
+
+  // ── Attempt 2: simple GET endpoint (always returns plain text) ─────────────
+  // Only uses the last user message — good enough for one-shot and follow-up queries.
+  const lastUser = msgs.filter((m) => m.role === "user").pop()?.content ?? "";
+  if (!lastUser) return;
+
+  const sysParam = msgs.find((m) => m.role === "system")?.content ?? "";
+  const getUrl = [
+    `https://text.pollinations.ai/${encodeURIComponent(lastUser)}`,
+    `?model=${model}`,
+    `&seed=${Math.floor(Math.random() * 999999)}`,
+    sysParam ? `&system=${encodeURIComponent(sysParam.slice(0, 300))}` : "",
+  ].join("");
+
+  const getRes = await fetch(getUrl);
+  if (!getRes.ok) throw new Error(`Pollinations error ${getRes.status}`);
+  const text = await getRes.text();
+  if (text.trim()) yield text.trim();
 }
 
 // ─── Provider streaming functions ────────────────────────────────────────────
@@ -398,22 +437,15 @@ const SE_VOICES: Record<string, string> = {
   "Emily":     "Joanna",
 };
 
-async function textToSpeechFree(text: string, voiceName: string): Promise<string | null> {
+function textToSpeechFree(text: string, voiceName: string): string {
   const voice = SE_VOICES[voiceName] ?? "Brian";
-  // StreamElements has ~500 char limit — truncate gracefully at a sentence boundary
+  // StreamElements has ~500 char limit — truncate at a sentence boundary
   const truncated = text.length > 450
     ? text.slice(0, 450).replace(/[^.!?]*$/, "").trim() || text.slice(0, 450)
     : text;
-  try {
-    const url = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(truncated)}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (blob.size < 100) return null; // empty/error response
-    return URL.createObjectURL(blob);
-  } catch {
-    return null;
-  }
+  // Return URL directly — <audio src="..."> loads cross-origin audio without CORS restrictions.
+  // No fetch() needed, so no CORS preflight, guaranteed to work from any origin.
+  return `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(truncated)}`;
 }
 
 /**
@@ -426,9 +458,7 @@ export async function textToSpeech(
   modelId = "eleven_multilingual_v2",
 ): Promise<string> {
   if (!K.elevenlabs) {
-    const url = await textToSpeechFree(text, voiceName);
-    if (url) return url;
-    throw new Error("TTS_UNAVAILABLE");
+    return textToSpeechFree(text, voiceName);
   }
 
   const voiceId = EL_VOICE_IDS[voiceName] ?? "EXAVITQu4vr4xnSDxMaL";
