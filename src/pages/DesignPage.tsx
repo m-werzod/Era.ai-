@@ -176,6 +176,7 @@ const DesignPage = () => {
     setGenError(null);
 
     try {
+      // generateImageDallE falls back to Pollinations.ai when no key — always returns URLs
       const urls = await generateImageDallE(text, aspectRatio);
       setGenerations((prev) => [
         ...prev,
@@ -196,8 +197,8 @@ const DesignPage = () => {
       sessionStorage.removeItem("era2_draft_design");
     } catch (err) {
       if (err instanceof Error && err.message === "NO_KEY") {
-        // Demo mode — show placeholder result
-        await new Promise((r) => setTimeout(r, 1800 + Math.random() * 1200));
+        // Should not reach here since Pollinations.ai runs without a key
+        await new Promise((r) => setTimeout(r, 800));
         setGenerations((prev) => [
           ...prev,
           {

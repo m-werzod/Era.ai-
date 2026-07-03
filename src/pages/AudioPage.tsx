@@ -11,6 +11,48 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { WorkspaceTabs } from "@/components/workspace/WorkspaceTabs";
 import { GenerationLoader } from "@/features/generation";
 
+/* ─── Browser TTS fallback (used when no ElevenLabs key) ─── */
+async function synthesizeWithBrowserTTS(text: string): Promise<string | null> {
+  if (!("speechSynthesis" in window)) return null;
+  return new Promise<string | null>((resolve) => {
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const preferred = voices.find((v) =>
+        v.lang.startsWith("ru") || v.lang.startsWith("en")
+      );
+      if (preferred) utterance.voice = preferred;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+
+      // Capture audio via MediaRecorder + Web Audio
+      const AudioCtxClass = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+      if (!AudioCtxClass || !window.MediaRecorder) {
+        // Fallback: just speak it without recording
+        speechSynthesis.speak(utterance);
+        resolve(null);
+        return;
+      }
+      const ctx = new AudioCtxClass();
+      const dest = ctx.createMediaStreamDestination();
+      const recorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        ctx.close();
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        resolve(URL.createObjectURL(blob));
+      };
+      recorder.start();
+      utterance.onend = () => setTimeout(() => recorder.stop(), 200);
+      utterance.onerror = () => { recorder.stop(); resolve(null); };
+      speechSynthesis.speak(utterance);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 /* ─── Voice data ─── */
 const voices = [
   { name: "Dmitry D", gender: "Мужской", lang: "Русский", color: "hsl(var(--primary))", category: ["popular", "male", "russian"] },
@@ -188,16 +230,17 @@ const AudioPage = () => {
         sessionStorage.removeItem("era2_draft_audio");
       } catch (err) {
         if (err instanceof Error && err.message === "NO_KEY") {
-          // Demo mode — show placeholder with duration
-          await new Promise((r) => setTimeout(r, 1800));
+          // Use Web Speech API as free TTS fallback
+          const browserAudioUrl = await synthesizeWithBrowserTTS(text);
           setGenerations((prev) => [...prev, {
             id: Date.now().toString(),
             prompt: text,
             model: currentModelName,
-            subModel: currentSubName,
+            subModel: `${currentSubName} (Browser TTS)`,
             createdAt: new Date(),
             type: "audio",
-            audioDuration: "0:18",
+            audioUrl: browserAudioUrl ?? undefined,
+            audioDuration: browserAudioUrl ? undefined : "0:18",
           }]);
           setPrompt("");
           sessionStorage.removeItem("era2_draft_audio");

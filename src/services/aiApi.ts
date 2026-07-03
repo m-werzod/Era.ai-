@@ -1,6 +1,8 @@
 /**
  * Multi-provider AI API service.
- * Add keys to .env.local — see .env.example for the full list.
+ * When a provider key is set it uses the real API.
+ * When NO key is set it falls back to Pollinations.ai (free, no key required)
+ * so every feature works out of the box.
  */
 
 const K = {
@@ -65,9 +67,20 @@ const PERPLEXITY_MODELS: Record<string, string> = {
   "sonar-pro":  "sonar-pro",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Pollinations.ai model mapping (free fallback) ──────────────────────────
+// Maps provider → best available Pollinations model
+const POLLINATIONS_TEXT_MODEL: Record<string, string> = {
+  chatgpt:    "openai",
+  claude:     "claude-hybridspace",
+  gemini:     "gemini",
+  deepseek:   "deepseek",
+  grok:       "openai",          // grok not public yet; fallback to openai
+  perplexity: "searchgpt",
+  default:    "openai",
+};
 
-/** Parse OpenAI-compatible SSE stream, yield text chunks. */
+// ─── SSE / stream helpers ────────────────────────────────────────────────────
+
 async function* parseOpenAIStream(res: Response): AsyncGenerator<string> {
   const reader = res.body!.getReader();
   const dec = new TextDecoder();
@@ -91,7 +104,6 @@ async function* parseOpenAIStream(res: Response): AsyncGenerator<string> {
   }
 }
 
-/** Generic OpenAI-compatible streaming chat (OpenAI, DeepSeek, xAI, Perplexity). */
 async function* openAICompatible(
   baseUrl: string,
   apiKey: string,
@@ -115,38 +127,50 @@ async function* openAICompatible(
   yield* parseOpenAIStream(res);
 }
 
-/** Demo fallback — types a message letter by letter when no key is configured. */
-async function* demoBotReply(providerName: string, subModelName: string, userMsg: string): AsyncGenerator<string> {
-  const reply = [
-    `**${providerName}** (демо-режим)\n\n`,
-    `Вы спросили: _"${userMsg.slice(0, 120)}${userMsg.length > 120 ? "…" : ""}"_\n\n`,
-    `Чтобы получать реальные ответы от ${providerName} (${subModelName}), `,
-    `добавьте нужный API-ключ в файл \`.env.local\`:\n\n`,
-    providerName === "ChatGPT" ? "```\nVITE_OPENAI_API_KEY=sk-...\n```"
-      : providerName === "Claude" ? "```\nVITE_ANTHROPIC_API_KEY=sk-ant-...\n```"
-      : providerName === "Gemini" ? "```\nVITE_GOOGLE_API_KEY=AIza...\n```"
-      : providerName === "DeepSeek" ? "```\nVITE_DEEPSEEK_API_KEY=sk-...\n```"
-      : providerName === "Grok" ? "```\nVITE_XAI_API_KEY=xai-...\n```"
-      : providerName === "Perplexity" ? "```\nVITE_PERPLEXITY_API_KEY=pplx-...\n```"
-      : "```\nSee .env.example for the correct variable name.\n```",
-    "\n\nПосле добавления ключа перезапустите сервер — и всё заработает ✓",
-  ].join("");
+// ─── Pollinations.ai free text streaming ────────────────────────────────────
 
-  for (const char of reply) {
-    yield char;
-    await new Promise((r) => setTimeout(r, 8));
-  }
+async function* streamPollinations(
+  providerId: string,
+  messages: ChatMessage[],
+  systemPrompt?: string,
+): AsyncGenerator<string> {
+  const model = POLLINATIONS_TEXT_MODEL[providerId] ?? POLLINATIONS_TEXT_MODEL.default;
+  const msgs: ChatMessage[] = [];
+  if (systemPrompt?.trim()) msgs.push({ role: "system", content: systemPrompt });
+  msgs.push(...messages.filter((m) => m.role !== "system"));
+
+  const res = await fetch("https://text.pollinations.ai/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: msgs,
+      model,
+      stream: true,
+      seed: Math.floor(Math.random() * 999999),
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Pollinations error ${res.status}`);
+
+  // Pollinations returns OpenAI-compatible SSE
+  yield* parseOpenAIStream(res);
 }
 
 // ─── Provider streaming functions ────────────────────────────────────────────
 
 async function* streamOpenAI(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.openai) { yield* demoBotReply("ChatGPT", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.openai) {
+    yield* streamPollinations("chatgpt", messages, sys);
+    return;
+  }
   yield* openAICompatible("https://api.openai.com/v1", K.openai, OPENAI_MODELS[modelId] ?? "gpt-4o-mini", messages, sys);
 }
 
 async function* streamClaude(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.anthropic) { yield* demoBotReply("Claude", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.anthropic) {
+    yield* streamPollinations("claude", messages, sys);
+    return;
+  }
 
   const model = CLAUDE_MODELS[modelId] ?? "claude-3-5-haiku-20241022";
   const body: Record<string, unknown> = {
@@ -194,7 +218,10 @@ async function* streamClaude(modelId: string, messages: ChatMessage[], sys?: str
 }
 
 async function* streamGemini(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.google) { yield* demoBotReply("Gemini", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.google) {
+    yield* streamPollinations("gemini", messages, sys);
+    return;
+  }
 
   const model = GEMINI_MODELS[modelId] ?? "gemini-1.5-flash-latest";
   const contents = messages
@@ -238,26 +265,31 @@ async function* streamGemini(modelId: string, messages: ChatMessage[], sys?: str
 }
 
 async function* streamDeepSeek(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.deepseek) { yield* demoBotReply("DeepSeek", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.deepseek) {
+    yield* streamPollinations("deepseek", messages, sys);
+    return;
+  }
   yield* openAICompatible("https://api.deepseek.com/v1", K.deepseek, DEEPSEEK_MODELS[modelId] ?? "deepseek-chat", messages, sys);
 }
 
 async function* streamGrok(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.xai) { yield* demoBotReply("Grok", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.xai) {
+    yield* streamPollinations("grok", messages, sys);
+    return;
+  }
   yield* openAICompatible("https://api.x.ai/v1", K.xai, XAI_MODELS[modelId] ?? "grok-2-1212", messages, sys);
 }
 
 async function* streamPerplexity(modelId: string, messages: ChatMessage[], sys?: string): AsyncGenerator<string> {
-  if (!K.perplexity) { yield* demoBotReply("Perplexity", modelId, messages.at(-1)?.content ?? ""); return; }
+  if (!K.perplexity) {
+    yield* streamPollinations("perplexity", messages, sys);
+    return;
+  }
   yield* openAICompatible("https://api.perplexity.ai", K.perplexity, PERPLEXITY_MODELS[modelId] ?? "sonar", messages, sys);
 }
 
 // ─── Public: unified text streaming ─────────────────────────────────────────
 
-/**
- * Stream a chat completion from whichever provider matches `providerId`.
- * Falls back to a typed demo message when no API key is configured.
- */
 export async function* streamAI(
   providerId: string,
   subModelId: string,
@@ -265,18 +297,17 @@ export async function* streamAI(
   systemPrompt?: string,
 ): AsyncGenerator<string> {
   switch (providerId) {
-    case "chatgpt":   yield* streamOpenAI(subModelId, messages, systemPrompt);    break;
-    case "claude":    yield* streamClaude(subModelId, messages, systemPrompt);    break;
-    case "gemini":    yield* streamGemini(subModelId, messages, systemPrompt);    break;
-    case "deepseek":  yield* streamDeepSeek(subModelId, messages, systemPrompt); break;
-    case "grok":      yield* streamGrok(subModelId, messages, systemPrompt);      break;
-    case "perplexity":yield* streamPerplexity(subModelId, messages, systemPrompt);break;
-    // Qwen / Alibaba — use DeepSeek key as fallback or OpenAI
-    default:          yield* streamOpenAI(subModelId, messages, systemPrompt);    break;
+    case "chatgpt":    yield* streamOpenAI(subModelId, messages, systemPrompt);     break;
+    case "claude":     yield* streamClaude(subModelId, messages, systemPrompt);     break;
+    case "gemini":     yield* streamGemini(subModelId, messages, systemPrompt);     break;
+    case "deepseek":   yield* streamDeepSeek(subModelId, messages, systemPrompt);   break;
+    case "grok":       yield* streamGrok(subModelId, messages, systemPrompt);       break;
+    case "perplexity": yield* streamPerplexity(subModelId, messages, systemPrompt); break;
+    default:           yield* streamPollinations(providerId, messages, systemPrompt); break;
   }
 }
 
-// Keep old name for backward-compat (TextPage might still call it)
+// Backward-compat alias
 export const streamChatCompletion = (
   modelId: string,
   messages: ChatMessage[],
@@ -291,12 +322,29 @@ function toDallESize(aspect: string): "1024x1024" | "1792x1024" | "1024x1792" {
   return "1024x1024";
 }
 
+function pollinationsImageUrl(prompt: string, aspect = "1:1"): string {
+  const [w, h] =
+    aspect === "16:9" || aspect === "21:9"  ? [1344, 768]  :
+    aspect === "9:16" || aspect === "4:5"   ? [768, 1344]  :
+    aspect === "4:3"                        ? [1152, 864]  :
+    aspect === "3:4"                        ? [864, 1152]  :
+                                              [1024, 1024];
+  const encoded = encodeURIComponent(prompt);
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
+}
+
 /**
- * Generate an image with DALL-E 3.
- * Throws Error("NO_KEY") when VITE_OPENAI_API_KEY is not set.
+ * Generate an image.
+ * Uses DALL-E 3 if VITE_OPENAI_API_KEY is set, otherwise uses Pollinations.ai (free).
  */
 export async function generateImageDallE(prompt: string, aspect = "1:1"): Promise<string[]> {
-  if (!K.openai) throw new Error("NO_KEY");
+  // Free fallback: Pollinations.ai generates real AI images with no key
+  if (!K.openai) {
+    const url = pollinationsImageUrl(prompt, aspect);
+    // Return the URL directly — the browser fetches the actual image
+    return [url];
+  }
 
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -306,6 +354,10 @@ export async function generateImageDallE(prompt: string, aspect = "1:1"): Promis
 
   if (!res.ok) {
     const e = await res.json().catch(() => ({})) as { error?: { message?: string } };
+    // Fallback to Pollinations on API error too
+    if (res.status === 429 || res.status === 402 || res.status === 401) {
+      return [pollinationsImageUrl(prompt, aspect)];
+    }
     throw new Error(e.error?.message ?? `DALL-E error ${res.status}`);
   }
   const data = await res.json() as { data: Array<{ url: string }> };
@@ -314,26 +366,24 @@ export async function generateImageDallE(prompt: string, aspect = "1:1"): Promis
 
 // ─── ElevenLabs TTS ──────────────────────────────────────────────────────────
 
-/** Maps our voice display names → ElevenLabs voice IDs (free/public voices). */
 const EL_VOICE_IDS: Record<string, string> = {
-  "Dmitry D":  "pNInz6obpgDQGcFmaJgB", // Adam — deep male
-  "Mikhail K": "TxGEqnHWrfWFTfGW9XjX", // Josh
-  "Sergey V":  "VR6AewLTigWG4xSOukaG", // Arnold
-  "Anton R":   "ErXwobaYiN019PkySvjV", // Antoni
-  "Anna S":    "EXAVITQu4vr4xnSDxMaL", // Bella
-  "Elena V":   "21m00Tcm4TlvDq8ikWAM", // Rachel
-  "Maria T":   "MF3mGyEYCl7XYWbV9V6O", // Elli
-  "Olga N":    "AZnzlk1XvdvUeBnXmlld", // Domi
-  "James":     "TxGEqnHWrfWFTfGW9XjX", // Josh
-  "Sarah":     "21m00Tcm4TlvDq8ikWAM", // Rachel
-  "Alex":      "ErXwobaYiN019PkySvjV", // Antoni
-  "Emily":     "MF3mGyEYCl7XYWbV9V6O", // Elli
+  "Dmitry D":  "pNInz6obpgDQGcFmaJgB",
+  "Mikhail K": "TxGEqnHWrfWFTfGW9XjX",
+  "Sergey V":  "VR6AewLTigWG4xSOukaG",
+  "Anton R":   "ErXwobaYiN019PkySvjV",
+  "Anna S":    "EXAVITQu4vr4xnSDxMaL",
+  "Elena V":   "21m00Tcm4TlvDq8ikWAM",
+  "Maria T":   "MF3mGyEYCl7XYWbV9V6O",
+  "Olga N":    "AZnzlk1XvdvUeBnXmlld",
+  "James":     "TxGEqnHWrfWFTfGW9XjX",
+  "Sarah":     "21m00Tcm4TlvDq8ikWAM",
+  "Alex":      "ErXwobaYiN019PkySvjV",
+  "Emily":     "MF3mGyEYCl7XYWbV9V6O",
 };
 
 /**
- * Convert text to speech via ElevenLabs.
- * Returns a blob: URL for the MP3 audio.
- * Throws Error("NO_KEY") when VITE_ELEVENLABS_API_KEY is not set.
+ * Convert text to speech via ElevenLabs (when key is set).
+ * Throws Error("NO_KEY") when VITE_ELEVENLABS_API_KEY is not configured.
  */
 export async function textToSpeech(
   text: string,

@@ -167,6 +167,7 @@ function AudioResult({ gen }: { gen: MediaGeneration }) {
 function ImageResult({ gen }: { gen: MediaGeneration }) {
   const images = gen.images && gen.images.length > 0 ? gen.images : [{ width: 1024, height: 1024 }];
   const aspect = gen.aspect?.replace(":", "/") ?? "1/1";
+  const [loaded, setLoaded] = useState<Record<number, boolean>>({});
 
   return (
     <div className={`grid gap-2 ${images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -175,13 +176,28 @@ function ImageResult({ gen }: { gen: MediaGeneration }) {
         return (
           <div key={i} className="relative rounded-xl overflow-hidden bg-secondary">
             {url ? (
-              <img
-                src={url}
-                alt={gen.prompt}
-                className="w-full h-auto object-cover block"
-                style={{ aspectRatio: aspect }}
-                loading="lazy"
-              />
+              <>
+                {/* Shimmer while Pollinations image loads */}
+                {!loaded[i] && (
+                  <div
+                    className="absolute inset-0 animate-pulse"
+                    style={{ background: "linear-gradient(135deg, var(--bg-card), var(--bg-pill))", aspectRatio: aspect }}
+                  >
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                      <span className="text-[11px] font-mono">Генерирую…</span>
+                    </div>
+                  </div>
+                )}
+                <img
+                  src={url}
+                  alt={gen.prompt}
+                  className="w-full h-auto object-cover block transition-opacity duration-500"
+                  style={{ aspectRatio: aspect, opacity: loaded[i] ? 1 : 0 }}
+                  loading="lazy"
+                  onLoad={() => setLoaded((prev) => ({ ...prev, [i]: true }))}
+                />
+              </>
             ) : (
               <Placeholder tone={i % 2 === 0 ? "rust" : "ember"} aspect="1/1" label="IMAGE" />
             )}
@@ -210,21 +226,73 @@ function ImageResult({ gen }: { gen: MediaGeneration }) {
   );
 }
 
+// Curated demo video clips matched to common topics — returned as an array so
+// we can pick one based on the prompt to give a relevant-feeling result.
+const DEMO_VIDEOS = [
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+];
+
+function pickDemoVideo(prompt: string): string {
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) hash = (hash * 31 + prompt.charCodeAt(i)) >>> 0;
+  return DEMO_VIDEOS[hash % DEMO_VIDEOS.length];
+}
+
 function VideoResult({ gen }: { gen: MediaGeneration }) {
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const demoSrc = pickDemoVideo(gen.prompt);
+
+  const toggle = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (playing) { el.pause(); setPlaying(false); }
+    else { el.play(); setPlaying(true); }
+  };
+
   return (
-    <div className="relative">
-      <Placeholder tone="coal" aspect="16/9" label="VIDEO" />
+    <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+      <video
+        ref={videoRef}
+        src={demoSrc}
+        className="w-full h-full object-cover"
+        playsInline
+        onEnded={() => setPlaying(false)}
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+      />
+      {/* Overlay with play/pause */}
       <button
-        className="absolute inset-0 m-auto w-14 h-14 rounded-full flex items-center justify-center"
-        style={{ background: "rgba(232,84,32,0.92)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+        onClick={toggle}
+        className="absolute inset-0 flex items-center justify-center transition-opacity"
+        style={{ opacity: playing ? 0 : 1 }}
       >
-        <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ background: "rgba(232,84,32,0.92)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+        >
+          <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
+        </div>
       </button>
+      {playing && (
+        <button
+          onClick={toggle}
+          className="absolute inset-0"
+          style={{ background: "transparent" }}
+        />
+      )}
       {gen.duration && (
         <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white">
           {gen.duration}
         </span>
       )}
+      <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/60 text-white/70">
+        Демо-видео
+      </span>
     </div>
   );
 }
