@@ -370,7 +370,8 @@ function pollinationsImageUrl(prompt: string, aspect = "1:1"): string {
                                               [1024, 1024];
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 999999);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
+  // nologo=true removes the Pollinations watermark; enhance=false skips extra AI processing for faster response
+  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
 }
 
 /**

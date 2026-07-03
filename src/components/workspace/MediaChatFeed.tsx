@@ -168,51 +168,50 @@ function AudioResult({ gen }: { gen: MediaGeneration }) {
 function ImageResult({ gen }: { gen: MediaGeneration }) {
   const images = gen.images && gen.images.length > 0 ? gen.images : [{ width: 1024, height: 1024 }];
   const aspect = gen.aspect?.replace(":", "/") ?? "1/1";
-  const [loaded, setLoaded] = useState<Record<number, boolean>>({});
+  const [status, setStatus] = useState<Record<number, "loading" | "done" | "error">>({});
 
   return (
     <div className={`grid gap-2 ${images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
       {images.map((img, i) => {
         const url = gen.imageUrls?.[i];
+        const st = status[i] ?? "loading";
         return (
-          <div key={i} className="relative rounded-xl overflow-hidden bg-secondary">
-            {url ? (
+          <div key={i} className="relative rounded-xl overflow-hidden" style={{ background: "var(--bg-pill)", aspectRatio: aspect }}>
+            {url && st !== "error" ? (
               <>
-                {/* Shimmer while Pollinations image loads */}
-                {!loaded[i] && (
-                  <div
-                    className="absolute inset-0 animate-pulse"
-                    style={{ background: "linear-gradient(135deg, var(--bg-card), var(--bg-pill))", aspectRatio: aspect }}
-                  >
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                      <span className="text-[11px] font-mono">Генерирую…</span>
-                    </div>
+                {/* Loading overlay */}
+                {st === "loading" && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 animate-pulse" style={{ background: "linear-gradient(135deg, var(--bg-card), var(--bg-pill))" }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-40"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <span className="text-[11px] font-mono opacity-50">Генерирую… ~20с</span>
                   </div>
                 )}
+                {/* Image — visible once loaded */}
                 <img
                   src={url}
                   alt={gen.prompt}
-                  className="w-full h-auto object-cover block transition-opacity duration-500"
-                  style={{ aspectRatio: aspect, opacity: loaded[i] ? 1 : 0 }}
-                  loading="lazy"
-                  onLoad={() => setLoaded((prev) => ({ ...prev, [i]: true }))}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+                  style={{ opacity: st === "done" ? 1 : 0 }}
+                  onLoad={() => setStatus((p) => ({ ...p, [i]: "done" }))}
+                  onError={() => setStatus((p) => ({ ...p, [i]: "error" }))}
                 />
               </>
             ) : (
-              <Placeholder tone={i % 2 === 0 ? "rust" : "ember"} aspect="1/1" label="IMAGE" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 opacity-40">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span className="text-[11px] font-mono">Изображение</span>
+              </div>
             )}
-            <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white">
+            <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white pointer-events-none">
               {img.width}×{img.height}
             </span>
-            {url && (
+            {url && st === "done" && (
               <a
                 href={url}
-                download={`era2-${gen.id}-${i}.png`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center bg-black/50 hover:bg-black/70 transition-colors"
-                title="Скачать"
+                title="Открыть оригинал"
                 onClick={(e) => e.stopPropagation()}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -245,6 +244,7 @@ function pickDemoVideo(prompt: string): string {
 
 function VideoResult({ gen }: { gen: MediaGeneration }) {
   const [playing, setPlaying] = useState(false);
+  const [canPlay, setCanPlay] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const src = gen.videoUrl ?? pickDemoVideo(gen.prompt);
   const isDemo = !gen.videoUrl;
@@ -252,8 +252,8 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
   const toggle = () => {
     const el = videoRef.current;
     if (!el) return;
-    if (playing) { el.pause(); setPlaying(false); }
-    else { el.play().catch(() => {}); setPlaying(true); }
+    if (playing) { el.pause(); }
+    else { el.play().catch(() => {}); }
   };
 
   const aspectStyle = gen.aspect
@@ -261,38 +261,58 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
     : { aspectRatio: "16/9" };
 
   return (
-    <div className="relative rounded-xl overflow-hidden bg-black" style={aspectStyle}>
+    <div className="relative rounded-xl overflow-hidden" style={{ ...aspectStyle, background: "linear-gradient(135deg, #1a1a2e, #16213e)" }}>
       <video
         ref={videoRef}
         src={src}
         className="w-full h-full object-cover"
         playsInline
-        preload="metadata"
+        preload="auto"
+        onCanPlay={() => setCanPlay(true)}
         onEnded={() => setPlaying(false)}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
-      {/* Play overlay — fades out when playing */}
-      <div
-        className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none"
-        style={{ opacity: playing ? 0 : 1 }}
-      >
+
+      {/* Dark gradient overlay so play button is always readable */}
+      {!playing && (
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: "rgba(232,84,32,0.92)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-        >
-          <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)" }}
+        />
+      )}
+
+      {/* Play / Pause button */}
+      <button
+        onClick={toggle}
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ background: "transparent" }}
+        aria-label={playing ? "Пауза" : "Воспроизвести"}
+      >
+        {!playing && (
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105"
+            style={{ background: "rgba(232,84,32,0.95)", boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.15)" }}
+          >
+            <Play className="w-7 h-7 text-white ml-1" fill="currentColor" />
+          </div>
+        )}
+      </button>
+
+      {/* Loading indicator while video buffers */}
+      {!canPlay && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
         </div>
-      </div>
-      {/* Full-area click target */}
-      <button onClick={toggle} className="absolute inset-0" aria-label={playing ? "Пауза" : "Воспроизвести"} />
+      )}
+
       {gen.duration && (
-        <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white pointer-events-none">
+        <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/70 text-white pointer-events-none z-10">
           {gen.duration}
         </span>
       )}
       {isDemo && (
-        <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/60 text-white/70 pointer-events-none">
+        <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/70 text-white/80 pointer-events-none z-10">
           Демо-видео
         </span>
       )}
