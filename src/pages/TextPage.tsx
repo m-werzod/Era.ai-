@@ -127,6 +127,27 @@ const TextPage = () => {
     el.style.height = Math.min(el.scrollHeight, 240) + "px";
   }, []);
 
+  const streamResponse = useCallback(async (history: ChatMessage[], assistantId: string) => {
+    setIsGenerating(true);
+    try {
+      const stream = streamAI(providerId, subModelId, history, systemPrompt || undefined);
+      for await (const chunk of stream) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId ? { ...m, content: `Ошибка: ${msg}` } : m,
+        ),
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [providerId, subModelId, systemPrompt]);
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || isGenerating) return;
@@ -145,30 +166,44 @@ const TextPage = () => {
     setInput("");
     sessionStorage.removeItem("era2_draft_text");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    setIsGenerating(true);
 
-    try {
-      const history: ChatMessage[] = [...messages, userMsg].map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
-      const stream = streamAI(providerId, subModelId, history, systemPrompt || undefined);
-      for await (const chunk of stream) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
-        );
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, content: `Ошибка: ${msg}` } : m,
-        ),
-      );
-    } finally {
-      setIsGenerating(false);
-    }
+    const history: ChatMessage[] = [...messages, userMsg].map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    await streamResponse(history, assistantId);
   };
+
+  const handleRegenerate = useCallback(async () => {
+    if (isGenerating || messages.length === 0) return;
+
+    // Find the last assistant message index and slice history up to (not including) it
+    let lastAssistantIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") { lastAssistantIdx = i; break; }
+    }
+    const history = lastAssistantIdx >= 0 ? messages.slice(0, lastAssistantIdx) : messages;
+    if (history.length === 0 || history[history.length - 1].role !== "user") return;
+
+    const assistantId = Date.now().toString();
+    const assistantMsg: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      model: subModel.name,
+      providerId: provider.id,
+    };
+    setMessages(lastAssistantIdx >= 0
+      ? [...messages.slice(0, lastAssistantIdx), assistantMsg]
+      : [...messages, assistantMsg]
+    );
+
+    const chatHistory: ChatMessage[] = history.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    await streamResponse(chatHistory, assistantId);
+  }, [isGenerating, messages, subModel, provider, streamResponse]);
 
   const handleSelect = (pId: string, sId: string) => {
     setProviderId(pId);
@@ -221,7 +256,7 @@ const TextPage = () => {
         {!hasMessages ? (
           <WelcomeScreen providerId={providerId} providerName={provider.name} subModelName={subModel.name} onQuickAction={handleQuickAction} colors={c} />
         ) : (
-          <ChatMessages messages={messages} isGenerating={isGenerating} currentModel={subModel.name} currentProviderId={provider.id} colors={c} onRegenerate={handleSend} />
+          <ChatMessages messages={messages} isGenerating={isGenerating} currentModel={subModel.name} currentProviderId={provider.id} colors={c} onRegenerate={handleRegenerate} />
         )}
         <div ref={chatEndRef} />
 

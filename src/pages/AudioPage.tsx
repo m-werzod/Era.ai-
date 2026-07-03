@@ -11,46 +11,22 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { WorkspaceTabs } from "@/components/workspace/WorkspaceTabs";
 import { GenerationLoader } from "@/features/generation";
 
-/* ─── Browser TTS fallback (used when no ElevenLabs key) ─── */
-async function synthesizeWithBrowserTTS(text: string): Promise<string | null> {
-  if (!("speechSynthesis" in window)) return null;
-  return new Promise<string | null>((resolve) => {
-    try {
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voices = speechSynthesis.getVoices();
-      const preferred = voices.find((v) =>
-        v.lang.startsWith("ru") || v.lang.startsWith("en")
-      );
-      if (preferred) utterance.voice = preferred;
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
+/* ─── Suno demo music (royalty-free tracks, no API key needed) ─── */
+const DEMO_MUSIC = [
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+];
 
-      // Capture audio via MediaRecorder + Web Audio
-      const AudioCtxClass = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-      if (!AudioCtxClass || !window.MediaRecorder) {
-        // Fallback: just speak it without recording
-        speechSynthesis.speak(utterance);
-        resolve(null);
-        return;
-      }
-      const ctx = new AudioCtxClass();
-      const dest = ctx.createMediaStreamDestination();
-      const recorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        ctx.close();
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        resolve(URL.createObjectURL(blob));
-      };
-      recorder.start();
-      utterance.onend = () => setTimeout(() => recorder.stop(), 200);
-      utterance.onerror = () => { recorder.stop(); resolve(null); };
-      speechSynthesis.speak(utterance);
-    } catch {
-      resolve(null);
-    }
-  });
+function pickDemoMusic(prompt: string): string {
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) hash = (hash * 31 + prompt.charCodeAt(i)) >>> 0;
+  return DEMO_MUSIC[hash % DEMO_MUSIC.length];
 }
 
 /* ─── Voice data ─── */
@@ -215,6 +191,7 @@ const AudioPage = () => {
 
     if (isEL) {
       try {
+        // textToSpeech auto-falls back to StreamElements free TTS when no ElevenLabs key
         const audioUrl = await textToSpeech(text, selectedVoice, "eleven_multilingual_v2");
         setGenerations((prev) => [...prev, {
           id: Date.now().toString(),
@@ -224,33 +201,16 @@ const AudioPage = () => {
           createdAt: new Date(),
           type: "audio",
           audioUrl,
-          audioDuration: "0:18",
         }]);
         setPrompt("");
         sessionStorage.removeItem("era2_draft_audio");
       } catch (err) {
-        if (err instanceof Error && err.message === "NO_KEY") {
-          // Use Web Speech API as free TTS fallback
-          const browserAudioUrl = await synthesizeWithBrowserTTS(text);
-          setGenerations((prev) => [...prev, {
-            id: Date.now().toString(),
-            prompt: text,
-            model: currentModelName,
-            subModel: `${currentSubName} (Browser TTS)`,
-            createdAt: new Date(),
-            type: "audio",
-            audioUrl: browserAudioUrl ?? undefined,
-            audioDuration: browserAudioUrl ? undefined : "0:18",
-          }]);
-          setPrompt("");
-          sessionStorage.removeItem("era2_draft_audio");
-        } else {
-          setAudioError(err instanceof Error ? err.message : "Ошибка генерации");
-        }
+        setAudioError(err instanceof Error ? err.message : "Ошибка генерации");
       }
     } else {
-      // Suno — no public API; simulate with placeholder
-      await new Promise((r) => setTimeout(r, 2500 + Math.random() * 1500));
+      // Suno — use royalty-free demo track matched by prompt hash
+      await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000));
+      const audioUrl = pickDemoMusic(text);
       setGenerations((prev) => [...prev, {
         id: Date.now().toString(),
         prompt: text,
@@ -258,6 +218,7 @@ const AudioPage = () => {
         subModel: currentSubName,
         createdAt: new Date(),
         type: "audio",
+        audioUrl,
         audioDuration: sunoDuration === "До 1 минуты" ? "0:58" : sunoDuration === "До 2 минут" ? "1:54" : "3:42",
       }]);
       setPrompt("");

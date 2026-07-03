@@ -18,6 +18,7 @@ export interface MediaGeneration {
   aspect?: string;
   quality?: string;
   // video
+  videoUrl?: string;
   duration?: string;
   resolution?: string;
   // audio
@@ -245,30 +246,35 @@ function pickDemoVideo(prompt: string): string {
 function VideoResult({ gen }: { gen: MediaGeneration }) {
   const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const demoSrc = pickDemoVideo(gen.prompt);
+  const src = gen.videoUrl ?? pickDemoVideo(gen.prompt);
+  const isDemo = !gen.videoUrl;
 
   const toggle = () => {
     const el = videoRef.current;
     if (!el) return;
     if (playing) { el.pause(); setPlaying(false); }
-    else { el.play(); setPlaying(true); }
+    else { el.play().catch(() => {}); setPlaying(true); }
   };
 
+  const aspectStyle = gen.aspect
+    ? { aspectRatio: gen.aspect.replace(":", "/") }
+    : { aspectRatio: "16/9" };
+
   return (
-    <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+    <div className="relative rounded-xl overflow-hidden bg-black" style={aspectStyle}>
       <video
         ref={videoRef}
-        src={demoSrc}
+        src={src}
         className="w-full h-full object-cover"
         playsInline
+        preload="metadata"
         onEnded={() => setPlaying(false)}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
-      {/* Overlay with play/pause */}
-      <button
-        onClick={toggle}
-        className="absolute inset-0 flex items-center justify-center transition-opacity"
+      {/* Play overlay — fades out when playing */}
+      <div
+        className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 pointer-events-none"
         style={{ opacity: playing ? 0 : 1 }}
       >
         <div
@@ -277,22 +283,19 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
         >
           <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
         </div>
-      </button>
-      {playing && (
-        <button
-          onClick={toggle}
-          className="absolute inset-0"
-          style={{ background: "transparent" }}
-        />
-      )}
+      </div>
+      {/* Full-area click target */}
+      <button onClick={toggle} className="absolute inset-0" aria-label={playing ? "Пауза" : "Воспроизвести"} />
       {gen.duration && (
-        <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white">
+        <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 text-white pointer-events-none">
           {gen.duration}
         </span>
       )}
-      <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/60 text-white/70">
-        Демо-видео
-      </span>
+      {isDemo && (
+        <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/60 text-white/70 pointer-events-none">
+          Демо-видео
+        </span>
+      )}
     </div>
   );
 }

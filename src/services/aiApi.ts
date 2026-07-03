@@ -381,16 +381,55 @@ const EL_VOICE_IDS: Record<string, string> = {
   "Emily":     "MF3mGyEYCl7XYWbV9V6O",
 };
 
+// ─── Free TTS fallback (StreamElements, no key required) ─────────────────────
+
+const SE_VOICES: Record<string, string> = {
+  "Dmitry D":  "Brian",
+  "Mikhail K": "Brian",
+  "Sergey V":  "Matthew",
+  "Anton R":   "Joey",
+  "Anna S":    "Amy",
+  "Elena V":   "Amy",
+  "Maria T":   "Salli",
+  "Olga N":    "Kimberly",
+  "James":     "Brian",
+  "Sarah":     "Amy",
+  "Alex":      "Matthew",
+  "Emily":     "Joanna",
+};
+
+async function textToSpeechFree(text: string, voiceName: string): Promise<string | null> {
+  const voice = SE_VOICES[voiceName] ?? "Brian";
+  // StreamElements has ~500 char limit — truncate gracefully at a sentence boundary
+  const truncated = text.length > 450
+    ? text.slice(0, 450).replace(/[^.!?]*$/, "").trim() || text.slice(0, 450)
+    : text;
+  try {
+    const url = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(truncated)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size < 100) return null; // empty/error response
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Convert text to speech via ElevenLabs (when key is set).
- * Throws Error("NO_KEY") when VITE_ELEVENLABS_API_KEY is not configured.
+ * Convert text to speech.
+ * Uses ElevenLabs when key is set; falls back to StreamElements free TTS otherwise.
  */
 export async function textToSpeech(
   text: string,
   voiceName = "Anna S",
   modelId = "eleven_multilingual_v2",
 ): Promise<string> {
-  if (!K.elevenlabs) throw new Error("NO_KEY");
+  if (!K.elevenlabs) {
+    const url = await textToSpeechFree(text, voiceName);
+    if (url) return url;
+    throw new Error("TTS_UNAVAILABLE");
+  }
 
   const voiceId = EL_VOICE_IDS[voiceName] ?? "EXAVITQu4vr4xnSDxMaL";
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
