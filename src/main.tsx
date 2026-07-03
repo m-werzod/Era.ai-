@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "@/app/App";
+import "@/features/language-switcher/model/i18n";
 import "@/app/styles/styles.css";
 
 createRoot(document.getElementById("root")!).render(

@@ -1,4 +1,7 @@
+import { useTranslation } from "react-i18next";
+
 export function LearnAIBanner() {
+  const { t } = useTranslation();
   return (
     <section className="max-w-6xl mx-auto px-4 py-10">
       <div
@@ -9,7 +12,7 @@ export function LearnAIBanner() {
         }}
       >
         <h3 className="text-[22px] font-bold" style={{ color: "var(--text-primary)" }}>
-          Хотите научиться{" "}
+          {t("home.learnBanner.titlePrefix")}{" "}
           <span
             className="italic"
             style={{
@@ -18,9 +21,9 @@ export function LearnAIBanner() {
               WebkitTextFillColor: "transparent",
             }}
           >
-            создавать
+            {t("home.learnBanner.titleHighlight")}
           </span>{" "}
-          трендовый визуал?
+          {t("home.learnBanner.titleSuffix")}
         </h3>
         <a
           href="https://coursehub.store"
@@ -29,7 +32,7 @@ export function LearnAIBanner() {
           className="inline-flex items-center justify-center px-7 py-3 rounded-[8px] text-[14px] font-semibold text-white hover:opacity-90 transition-opacity shrink-0"
           style={{ background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" }}
         >
-          Узнать больше
+          {t("home.learnBanner.cta")}
         </a>
       </div>
     </section>

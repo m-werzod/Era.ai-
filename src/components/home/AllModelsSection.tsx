@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 import { aiPhotos, aiArt, aiVideo, aiLandscapes } from "@/entities/generation";
 
@@ -8,27 +9,29 @@ const allImages = [...aiPhotos.slice(0, 3), ...aiArt.slice(0, 2), ...aiLandscape
 const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 
-const imageTools = [
-  { name: "Текст в изображение", sub: "Text to Image" },
-  { name: "Изображение в изображение", sub: "Image to Image" },
-  { name: "Генерация аватаров", sub: "AI Avatars" },
-  { name: "Генерация логотипов", sub: "Logo Generation" },
-  { name: "Арт и иллюстрации", sub: "Art & Illustrations" },
-  { name: "Фотореализм", sub: "Photorealism" },
-  { name: "Стикеры и эмодзи", sub: "Stickers & Emoji" },
-];
-
-const videoTools = [
-  { name: "Текст в видео", sub: "Text to Video" },
-  { name: "Изображение в видео", sub: "Image to Video" },
-  { name: "Контроль движения", sub: "Motion Control" },
-  { name: "Видео с аудио", sub: "Video with Audio" },
-  { name: "Анимация персонажей", sub: "Character Animation" },
-  { name: "Кинематографичные сцены", sub: "Cinematic Scenes" },
-  { name: "Короткие клипы", sub: "Short Clips" },
-];
-
 export function AllModelsSection() {
+  const { t } = useTranslation();
+
+  const imageTools = [
+    { name: t("home.allModels.imageTools.textToImage"), sub: "Text to Image" },
+    { name: t("home.allModels.imageTools.imageToImage"), sub: "Image to Image" },
+    { name: t("home.allModels.imageTools.avatars"), sub: "AI Avatars" },
+    { name: t("home.allModels.imageTools.logos"), sub: "Logo Generation" },
+    { name: t("home.allModels.imageTools.art"), sub: "Art & Illustrations" },
+    { name: t("home.allModels.imageTools.photorealism"), sub: "Photorealism" },
+    { name: t("home.allModels.imageTools.stickers"), sub: "Stickers & Emoji" },
+  ];
+
+  const videoTools = [
+    { name: t("home.allModels.videoTools.textToVideo"), sub: "Text to Video" },
+    { name: t("home.allModels.videoTools.imageToVideo"), sub: "Image to Video" },
+    { name: t("home.allModels.videoTools.motionControl"), sub: "Motion Control" },
+    { name: t("home.allModels.videoTools.videoWithAudio"), sub: "Video with Audio" },
+    { name: t("home.allModels.videoTools.characterAnimation"), sub: "Character Animation" },
+    { name: t("home.allModels.videoTools.cinematicScenes"), sub: "Cinematic Scenes" },
+    { name: t("home.allModels.videoTools.shortClips"), sub: "Short Clips" },
+  ];
+
   const [tab, setTab] = useState<"image" | "video">("image");
   const tools = tab === "image" ? imageTools : videoTools;
 
@@ -42,9 +45,9 @@ export function AllModelsSection() {
       variants={stagger}
     >
       <motion.div variants={fadeUp} className="text-center mb-8">
-        <h2 className="text-2xl md:text-[32px] font-bold mb-3">Все инструменты в одной подписке</h2>
+        <h2 className="text-2xl md:text-[32px] font-bold mb-3">{t("home.allModels.heading")}</h2>
         <p className="text-base text-muted-foreground">
-          Создавайте контент и тренды на базе лучших ИИ
+          {t("home.allModels.subheading")}
         </p>
       </motion.div>
 
@@ -55,14 +58,14 @@ export function AllModelsSection() {
             className={cn("px-5 py-2 rounded-[8px] text-sm cursor-pointer", tab === "image" ? "text-foreground font-medium" : "text-muted-foreground")}
             style={tab === "image" ? { background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" } : undefined}
           >
-            Инструменты изображений
+            {t("home.allModels.tabImages")}
           </button>
           <button
             onClick={() => setTab("video")}
             className={cn("px-5 py-2 rounded-[8px] text-sm cursor-pointer", tab === "video" ? "text-foreground font-medium" : "text-muted-foreground")}
             style={tab === "video" ? { background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" } : undefined}
           >
-            Инструменты видео
+            {t("home.allModels.tabVideo")}
           </button>
         </div>
       </motion.div>

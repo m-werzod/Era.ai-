@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@/shared/routing";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/features/auth";
 import { ArrowUp, Star } from "lucide-react";
 import { Eyebrow, ModelGlyph } from "@/shared/ui/era";
@@ -29,6 +30,7 @@ const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 const PROOF_MODELS = ["ChatGPT", "Claude", "Gemini", "Midjourney", "Sora", "Suno"];
 
 const Index = () => {
+  const { t } = useTranslation();
   const { isAuthed } = useAuth();
   const navigate = useNavigate();
   const ctaLink = isAuthed ? "/design" : "/auth";
@@ -93,22 +95,21 @@ const Index = () => {
           variants={stagger}
         >
           <motion.div variants={fadeUp} className="mb-5 inline-block">
-            <Eyebrow>ERA2 · AI AGGREGATOR</Eyebrow>
+            <Eyebrow>{t("home.hero.eyebrow")}</Eyebrow>
           </motion.div>
           <motion.h1
             variants={fadeUp}
             className="text-[32px] md:text-[52px] font-bold leading-[1.05] tracking-tight mb-6 text-balance"
           >
-            Один ключ.
+            {t("home.hero.titleLine1")}
             <br />
-            <span className="gradient-accent-text">Все модели.</span>
+            <span className="gradient-accent-text">{t("home.hero.titleLine2")}</span>
           </motion.h1>
           <motion.p
             variants={fadeUp}
             className="text-muted-foreground text-base md:text-lg max-w-xl mx-auto mb-7 leading-relaxed"
           >
-            Подключайтесь к ChatGPT, Claude, Gemini, Midjourney, Sora и ещё 90+ нейросетям через
-            единую подписку. Оплата в рублях, без VPN.
+            {t("home.hero.subtitle")}
           </motion.p>
 
           <motion.div
@@ -129,10 +130,10 @@ const Index = () => {
                 <Star key={i} className="h-4 w-4 fill-[#ffb27a] text-[#ffb27a]" />
               ))}
             </div>
-            <span>Бета-тестирование · Присоединяйтесь первыми</span>
+            <span>{t("home.hero.badge")}</span>
             <span className="mx-2 opacity-40">·</span>
             <Link to={ctaLink} className="text-[hsl(var(--primary))] hover:underline font-medium">
-              Начать бесплатно
+              {t("home.hero.ctaStart")}
             </Link>
           </motion.div>
         </motion.div>
@@ -165,16 +166,16 @@ const Index = () => {
       <section className="py-16 md:py-20 border-t border-border">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl md:text-[32px] font-bold mb-8 text-center">
-            Нейросети по категориям
+            {t("home.categories.heading")}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { label: "Генерация текста", to: "/tools/text-generation", emoji: "💬" },
-              { label: "Генерация изображений", to: "/tools/image-generation", emoji: "🎨" },
-              { label: "Генерация видео", to: "/tools/video-generation", emoji: "🎬" },
-              { label: "Генерация аудио", to: "/tools/audio-generation", emoji: "🎵" },
-              { label: "ИИ-агенты", to: "/tools/agents", emoji: "🤖" },
-              { label: "Nano Banana", to: "/tools/nano-banana", emoji: "🍌" },
+              { label: t("home.categories.text"), to: "/tools/text-generation", emoji: "💬" },
+              { label: t("home.categories.images"), to: "/tools/image-generation", emoji: "🎨" },
+              { label: t("home.categories.video"), to: "/tools/video-generation", emoji: "🎬" },
+              { label: t("home.categories.audio"), to: "/tools/audio-generation", emoji: "🎵" },
+              { label: t("home.categories.agents"), to: "/tools/agents", emoji: "🤖" },
+              { label: t("home.categories.nanoBanana"), to: "/tools/nano-banana", emoji: "🍌" },
             ].map((item) => (
               <Link
                 key={item.to}
@@ -203,39 +204,38 @@ const Index = () => {
             <div className="flex-1 space-y-8">
               <div>
                 <h2 className="text-[28px] md:text-[36px] font-bold mb-2">
-                  ERA2 | Агрегатор нейросетей
+                  {t("home.ecosystem.heading")}
                 </h2>
                 <p className="text-5xl font-bold gradient-accent-text">ERA2</p>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-bold italic mb-1">Обучение</h3>
+                  <h3 className="text-lg font-bold italic mb-1">{t("home.ecosystem.learning.title")}</h3>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {["Школа", "Академия", "Мастер-классы", "Туториалы"].map((t) => (
-                      <span key={t} className="text-xs text-muted-foreground">
-                        {t} •
+                    {(t("home.ecosystem.learning.tags", { returnObjects: true }) as string[]).map((tag) => (
+                      <span key={tag} className="text-xs text-muted-foreground">
+                        {tag} •
                       </span>
                     ))}
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    В ERA2 AI обучение — это часть экосистемы. Видео и практические материалы по
-                    работе с нейросетями, разбор реальных кейсов.
+                    {t("home.ecosystem.learning.desc")}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold mb-1">Сообщество</h3>
+                  <h3 className="text-lg font-bold mb-1">{t("home.ecosystem.community.title")}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Наше сообщество — место где креаторы делятся опытом и находят вдохновение.
+                    {t("home.ecosystem.community.desc")}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold mb-1">Медиа</h3>
-                  <p className="text-xs text-muted-foreground mb-1">Рост вместе с ERA2.AI</p>
+                  <h3 className="text-lg font-bold mb-1">{t("home.ecosystem.media.title")}</h3>
+                  <p className="text-xs text-muted-foreground mb-1">{t("home.ecosystem.media.tagline")}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Следите за новостями и обновлениями в наших каналах.
+                    {t("home.ecosystem.media.desc")}
                   </p>
                 </div>
               </div>

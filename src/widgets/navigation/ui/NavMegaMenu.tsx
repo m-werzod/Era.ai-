@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "@/shared/routing";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   MessageSquare,
   PenLine,
@@ -51,116 +52,126 @@ interface TabConfig {
   modelsTitle?: string;
 }
 
-const TABS: TabConfig[] = [
-  {
-    key: "text",
-    label: "Текст",
-    route: "/text",
-    features: [
-      { icon: MessageSquare, title: "Чат с ИИ", desc: "Ответы на любые вопросы" },
-      { icon: PenLine, title: "Написать текст", desc: "Статьи, посты, тексты" },
-      { icon: Globe, title: "Поиск в интернете", desc: "Актуальная информация" },
-      { icon: FileSearch, title: "Анализ документов", desc: "Исследования и разбор" },
-      { icon: Languages, title: "Перевод текста", desc: "Перевод с сохранением смысла" },
-      { icon: Code, title: "Написать код", desc: "Создание и исправление кода" },
-      { icon: Lightbulb, title: "Генерация идей", desc: "Концепции, названия, слоганы" },
-    ],
-    models: [
-      { name: "ChatGPT", desc: "GPT от OpenAI" },
-      { name: "Claude", desc: "От Anthropic" },
-      { name: "Gemini", desc: "От Google" },
-      { name: "Perplexity", desc: "Поиск с ИИ" },
-      { name: "Grok", desc: "От xAI" },
-      { name: "Qwen", desc: "От Alibaba" },
-      { name: "DeepSeek", desc: "Reasoning модель" },
-    ],
-  },
-  {
-    key: "design",
-    label: "Дизайн",
-    route: "/design",
-    features: [
-      { icon: ImageIcon, title: "Создать изображение", desc: "Генерация по тексту" },
-      { icon: Camera, title: "Сделать ИИ-фото", desc: "Реалистичные фото людей" },
-      { icon: Paintbrush, title: "Редактор фото", desc: "Изменение и доработка" },
-      { icon: Eraser, title: "Удалить фон", desc: "Удаление и замена фона" },
-      { icon: Scissors, title: "Удалить объект", desc: "Удаление людей и предметов" },
-      { icon: ZoomIn, title: "Улучшить качество", desc: "Повышение чёткости и деталей" },
-      { icon: RefreshCw, title: "Замена лица", desc: "Face Swap на фото" },
-    ],
-    models: [
-      { name: "Nano Banana", desc: "Быстрая генерация" },
-      { name: "MidJourney", desc: "Художественный стиль" },
-      { name: "Seedream", desc: "От ByteDance" },
-      { name: "GPT Image", desc: "От OpenAI" },
-      { name: "Flux", desc: "Фотореализм" },
-      { name: "Imagen", desc: "От Google" },
-      { name: "Higgsfield", desc: "Soul / Speak" },
-    ],
-  },
-  {
-    key: "video",
-    label: "Видео",
-    route: "/video",
-    features: [
-      { icon: Video, title: "Создать видео", desc: "Генерация из текста" },
-      { icon: Sparkles, title: "Оживить фото", desc: "Анимация изображений" },
-      { icon: Film, title: "Видео редактор", desc: "Изменение видео" },
-      { icon: User, title: "ИИ Аватар", desc: "Говорящие аватары" },
-      { icon: TrendingUp, title: "Улучшить качество", desc: "Апскейл видео" },
-    ],
-    models: [
-      { name: "Kling", desc: "Реалистичное видео" },
-      { name: "Veo", desc: "От Google" },
-      { name: "Runway", desc: "Профессиональный" },
-      { name: "Seedance", desc: "От ByteDance" },
-      { name: "Hailuo", desc: "Minimax" },
-      { name: "Wan", desc: "Alibaba" },
-      { name: "Sora", desc: "От OpenAI" },
-      { name: "HeyGen", desc: "AI аватары" },
-      { name: "Hedra", desc: "Говорящие персонажи" },
-    ],
-  },
-  {
-    key: "audio",
-    label: "Аудио",
-    route: "/audio",
-    features: [
-      { icon: Music, title: "Создать песню", desc: "Генерация музыки и вокала" },
-      { icon: AudioLines, title: "Озвучка текста", desc: "Текст в речь" },
-      { icon: Mic, title: "Клон голоса", desc: "Копирование голоса" },
-      { icon: Volume2, title: "Смена голоса", desc: "Изменение тембра" },
-      { icon: Activity, title: "Создание звуков", desc: "Генерация эффектов" },
-      { icon: VolumeX, title: "Удаление шума", desc: "Очистка и улучшение" },
-    ],
-    models: [
-      { name: "ElevenLabs", desc: "Озвучка и голос" },
-      { name: "Suno", desc: "Генерация музыки", badge: "TOP" },
-    ],
-  },
-  {
-    key: "agents",
-    label: "Агенты",
-    route: "/agents",
-    modelsTitle: "РАБОТАЮТ НА",
-    features: [
-      { icon: TrendingUp, title: "Маркетолог", desc: "Стратегия и продвижение" },
-      { icon: PenLine, title: "Копирайтер", desc: "Тексты и SEO" },
-      { icon: Code, title: "Программист", desc: "Код и отладка" },
-      { icon: Languages, title: "Переводчик", desc: "50+ языков" },
-      { icon: FileSearch, title: "Юрист", desc: "Анализ документов" },
-      { icon: Lightbulb, title: "Генерация идей", desc: "Концепции и слоганы" },
-    ],
-    models: [
-      { name: "ChatGPT", desc: "Универсальный ИИ" },
-      { name: "Claude", desc: "Глубокий анализ" },
-      { name: "Gemini", desc: "От Google" },
-      { name: "DeepSeek", desc: "Reasoning модель" },
-    ],
-  },
-];
+function buildTabs(t: (key: string) => string): TabConfig[] {
+  const ft = (tab: string, id: string) => ({
+    title: t(`nav.tabs.${tab}.features.${id}.title`),
+    desc: t(`nav.tabs.${tab}.features.${id}.desc`),
+  });
+  const md = (tab: string, id: string) => t(`nav.tabs.${tab}.models.${id}.desc`);
+
+  return [
+    {
+      key: "text",
+      label: t("nav.tabs.text.label"),
+      route: "/text",
+      features: [
+        { icon: MessageSquare, ...ft("text", "chat") },
+        { icon: PenLine, ...ft("text", "write") },
+        { icon: Globe, ...ft("text", "search") },
+        { icon: FileSearch, ...ft("text", "docs") },
+        { icon: Languages, ...ft("text", "translate") },
+        { icon: Code, ...ft("text", "code") },
+        { icon: Lightbulb, ...ft("text", "ideas") },
+      ],
+      models: [
+        { name: "ChatGPT", desc: md("text", "chatgpt") },
+        { name: "Claude", desc: md("text", "claude") },
+        { name: "Gemini", desc: md("text", "gemini") },
+        { name: "Perplexity", desc: md("text", "perplexity") },
+        { name: "Grok", desc: md("text", "grok") },
+        { name: "Qwen", desc: md("text", "qwen") },
+        { name: "DeepSeek", desc: md("text", "deepseek") },
+      ],
+    },
+    {
+      key: "design",
+      label: t("nav.tabs.design.label"),
+      route: "/design",
+      features: [
+        { icon: ImageIcon, ...ft("design", "createImage") },
+        { icon: Camera, ...ft("design", "aiPhoto") },
+        { icon: Paintbrush, ...ft("design", "photoEditor") },
+        { icon: Eraser, ...ft("design", "removeBg") },
+        { icon: Scissors, ...ft("design", "removeObject") },
+        { icon: ZoomIn, ...ft("design", "upscale") },
+        { icon: RefreshCw, ...ft("design", "faceSwap") },
+      ],
+      models: [
+        { name: "Nano Banana", desc: md("design", "nanoBanana") },
+        { name: "MidJourney", desc: md("design", "midjourney") },
+        { name: "Seedream", desc: md("design", "seedream") },
+        { name: "GPT Image", desc: md("design", "gptImage") },
+        { name: "Flux", desc: md("design", "flux") },
+        { name: "Imagen", desc: md("design", "imagen") },
+        { name: "Higgsfield", desc: md("design", "higgsfield") },
+      ],
+    },
+    {
+      key: "video",
+      label: t("nav.tabs.video.label"),
+      route: "/video",
+      features: [
+        { icon: Video, ...ft("video", "createVideo") },
+        { icon: Sparkles, ...ft("video", "animatePhoto") },
+        { icon: Film, ...ft("video", "videoEditor") },
+        { icon: User, ...ft("video", "aiAvatar") },
+        { icon: TrendingUp, ...ft("video", "upscale") },
+      ],
+      models: [
+        { name: "Kling", desc: md("video", "kling") },
+        { name: "Veo", desc: md("video", "veo") },
+        { name: "Runway", desc: md("video", "runway") },
+        { name: "Seedance", desc: md("video", "seedance") },
+        { name: "Hailuo", desc: md("video", "hailuo") },
+        { name: "Wan", desc: md("video", "wan") },
+        { name: "Sora", desc: md("video", "sora") },
+        { name: "HeyGen", desc: md("video", "heygen") },
+        { name: "Hedra", desc: md("video", "hedra") },
+      ],
+    },
+    {
+      key: "audio",
+      label: t("nav.tabs.audio.label"),
+      route: "/audio",
+      features: [
+        { icon: Music, ...ft("audio", "createSong") },
+        { icon: AudioLines, ...ft("audio", "textToSpeech") },
+        { icon: Mic, ...ft("audio", "voiceClone") },
+        { icon: Volume2, ...ft("audio", "voiceChange") },
+        { icon: Activity, ...ft("audio", "soundFx") },
+        { icon: VolumeX, ...ft("audio", "denoise") },
+      ],
+      models: [
+        { name: "ElevenLabs", desc: md("audio", "elevenlabs") },
+        { name: "Suno", desc: md("audio", "suno"), badge: "TOP" },
+      ],
+    },
+    {
+      key: "agents",
+      label: t("nav.tabs.agents.label"),
+      route: "/agents",
+      modelsTitle: t("nav.common.poweredByHeading"),
+      features: [
+        { icon: TrendingUp, ...ft("agents", "marketer") },
+        { icon: PenLine, ...ft("agents", "copywriter") },
+        { icon: Code, ...ft("agents", "developer") },
+        { icon: Languages, ...ft("agents", "translator") },
+        { icon: FileSearch, ...ft("agents", "lawyer") },
+        { icon: Lightbulb, ...ft("agents", "ideas") },
+      ],
+      models: [
+        { name: "ChatGPT", desc: md("agents", "chatgpt") },
+        { name: "Claude", desc: md("agents", "claude") },
+        { name: "Gemini", desc: md("agents", "gemini") },
+        { name: "DeepSeek", desc: md("agents", "deepseek") },
+      ],
+    },
+  ];
+}
 
 export function NavMegaMenu() {
+  const { t } = useTranslation();
+  const TABS = buildTabs(t);
   const [active, setActive] = useState<string | null>(null);
   const navigate = useNavigate();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -240,7 +251,7 @@ export function NavMegaMenu() {
                   className="font-mono text-[11px] uppercase tracking-[0.14em] mb-3"
                   style={{ color: "var(--c-fg-mute)" }}
                 >
-                  Возможности
+                  {t("nav.common.featuresHeading")}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {activeTab.features!.map((f) => (
@@ -287,7 +298,7 @@ export function NavMegaMenu() {
                   className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium px-3"
                   style={{ color: "var(--c-accent)" }}
                 >
-                  Все возможности <ArrowRight size={12} />
+                  {t("nav.common.allFeatures")} <ArrowRight size={12} />
                 </Link>
               </div>
 
@@ -297,7 +308,7 @@ export function NavMegaMenu() {
                   className="font-mono text-[11px] uppercase tracking-[0.14em] mb-3"
                   style={{ color: "var(--c-fg-mute)" }}
                 >
-                  {activeTab.modelsTitle || "Модели"}
+                  {activeTab.modelsTitle || t("nav.common.modelsHeading")}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {activeTab.models!.map((m) => (
@@ -344,7 +355,7 @@ export function NavMegaMenu() {
                   className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium px-3"
                   style={{ color: "var(--c-accent)" }}
                 >
-                  Все ИИ-модели <ArrowRight size={12} />
+                  {t("nav.common.allModels")} <ArrowRight size={12} />
                 </Link>
                 {activeTab.key === "text" && (
                   <Link
@@ -356,7 +367,7 @@ export function NavMegaMenu() {
                       color: "hsl(var(--primary))",
                     }}
                   >
-                    Все текстовые нейросети →
+                    {t("nav.common.allTextModels")} →
                   </Link>
                 )}
                 {activeTab.key === "design" && (
@@ -369,7 +380,7 @@ export function NavMegaMenu() {
                       color: "hsl(var(--primary))",
                     }}
                   >
-                    Все нейросети для изображений →
+                    {t("nav.common.allImageModels")} →
                   </Link>
                 )}
                 {activeTab.key === "video" && (
@@ -382,7 +393,7 @@ export function NavMegaMenu() {
                       color: "hsl(var(--primary))",
                     }}
                   >
-                    Все видео нейросети →
+                    {t("nav.common.allVideoModels")} →
                   </Link>
                 )}
                 {activeTab.key === "audio" && (
@@ -395,7 +406,7 @@ export function NavMegaMenu() {
                       color: "hsl(var(--primary))",
                     }}
                   >
-                    Все аудио нейросети →
+                    {t("nav.common.allAudioModels")} →
                   </Link>
                 )}
                 {activeTab.key === "agents" && (
@@ -408,7 +419,7 @@ export function NavMegaMenu() {
                       color: "hsl(var(--primary))",
                     }}
                   >
-                    Все ИИ-агенты →
+                    {t("nav.common.allAgents")} →
                   </Link>
                 )}
               </div>

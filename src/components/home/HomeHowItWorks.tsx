@@ -1,13 +1,16 @@
-const steps = [
-  { num: "01", title: "Выберите нейросеть", desc: "ChatGPT, MidJourney, Sora или любая из 90+ моделей. Все в одном интерфейсе." },
-  { num: "02", title: "Введите запрос", desc: "Опишите что нужно создать — на русском или английском. Текст, изображение, видео или аудио." },
-  { num: "03", title: "Получите результат", desc: "Генерация за секунды. Скачайте, поделитесь или продолжите работу." },
-];
+import { useTranslation } from "react-i18next";
 
 export function HomeHowItWorks() {
+  const { t } = useTranslation();
+  const steps = [
+    { num: "01", title: t("home.howItWorks.steps.choose.title"), desc: t("home.howItWorks.steps.choose.desc") },
+    { num: "02", title: t("home.howItWorks.steps.prompt.title"), desc: t("home.howItWorks.steps.prompt.desc") },
+    { num: "03", title: t("home.howItWorks.steps.result.title"), desc: t("home.howItWorks.steps.result.desc") },
+  ];
+
   return (
     <section className="max-w-[900px] mx-auto" style={{ padding: "80px 16px" }}>
-      <h2 className="text-foreground" style={{ fontSize: 28, fontWeight: 700, textAlign: "center", marginBottom: 48 }}>Как это работает</h2>
+      <h2 className="text-foreground" style={{ fontSize: 28, fontWeight: 700, textAlign: "center", marginBottom: 48 }}>{t("home.howItWorks.heading")}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {steps.map((s) => (
           <div key={s.num}>

@@ -1,14 +1,16 @@
 import { Link } from "@/shared/routing";
 import { Clock, Menu, Moon, Search, Sun } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 import { useTheme } from "@/features/theme-switcher";
 import { useAuth } from "@/features/auth";
 import { useCommandPalette } from "@/features/command-palette";
+import { LanguageSwitcher } from "@/features/language-switcher";
 import { UserDropdown } from "./UserDropdown";
 import { NavMegaMenu } from "./NavMegaMenu";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { PromoBanner } from "@/features/promo";
-import { PROMO_ACTIVE, PROMO_LABEL, PROMO_TEXT } from "@/config/promo";
+import { PROMO_ACTIVE, PROMO_LABEL } from "@/config/promo";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -22,6 +24,7 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { isAuthed } = useAuth();
   const { setOpen } = useCommandPalette();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -33,7 +36,7 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
           <button
             onClick={onToggleSidebar}
             className="lg:hidden p-2 rounded-full hover:bg-secondary transition-colors"
-            aria-label="Меню"
+            aria-label={t("header.menuAria")}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -73,13 +76,13 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
           className="hidden md:inline-flex items-center gap-2 h-9 px-3 bg-secondary border border-border rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
         >
           <Search className="h-3.5 w-3.5" />
-          <span>Поиск моделей</span>
+          <span>{t("header.searchModels")}</span>
           <span className="bg-card rounded-md px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</span>
         </button>
         <button
           onClick={() => setOpen(true)}
           className={cn(iconBtn, "md:hidden")}
-          aria-label="Поиск"
+          aria-label={t("header.searchAria")}
         >
           <Search className="h-4 w-4" />
         </button>
@@ -90,7 +93,7 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
           className="hidden lg:inline-flex items-center gap-2 h-9 px-3 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
           <Clock className="h-3.5 w-3.5" />
-          История
+          {t("header.history")}
         </Link>
 
         {/* Promo (desktop only) */}
@@ -104,16 +107,18 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
               style={{ boxShadow: "0 0 8px var(--c-accent)" }}
             />
             <span className="font-mono tabular-nums text-primary">{PROMO_LABEL}</span>
-            <span className="text-foreground">{PROMO_TEXT}</span>
+            <span className="text-foreground">{t("footer.product.pricing")}</span>
           </Link>
         )}
 
         {/* Notifications */}
         {isAuthed && <NotificationsDropdown />}
 
+        {/* Language */}
+        <LanguageSwitcher />
 
         {/* Theme */}
-        <button onClick={toggleTheme} className={iconBtn} aria-label="Переключить тему">
+        <button onClick={toggleTheme} className={iconBtn} aria-label={t("header.themeToggleAria")}>
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
@@ -127,14 +132,14 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
               className="hidden sm:inline-flex items-center h-9 px-4 rounded-full text-sm font-medium border transition-colors"
               style={{ borderColor: "var(--c-line)", color: "var(--c-fg)", background: "transparent" }}
             >
-              Войти
+              {t("header.login")}
             </Link>
             <Link
               to="/auth"
               className="inline-flex items-center h-9 px-4 sm:px-5 rounded-full text-sm font-medium text-white transition-colors"
               style={{ background: "var(--c-accent)", boxShadow: "0 4px 16px -4px rgba(232, 84, 32, 0.5)" }}
             >
-              Начать
+              {t("header.start")}
             </Link>
           </div>
         )}

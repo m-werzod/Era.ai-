@@ -1,31 +1,33 @@
 import { useState } from "react";
 import { Link } from "@/shared/routing";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 import { aiPhotos, aiVideo } from "@/entities/generation";
 
 const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 
-const photoModels = [
-  { id: "midjourney", name: "Midjourney", desc: "Лидер для арт-стилистики, иллюстраций и концепт-арта. Создавайте произведения искусства по текстовому описанию." },
-  { id: "nano-banana", name: "Nano Banana", desc: "Премиум-генерация с фотореалистичным качеством. Лучшая модель для коммерческих фотосессий." },
-  { id: "seedream", name: "Seedream", desc: "Быстрая генерация от ByteDance с отличным соотношением цена/качество. От 2 кредитов." },
-  { id: "gpt-image", name: "GPT Image", desc: "Генерация изображений от OpenAI. Точное следование промпту, работа с текстом на картинках." },
-  { id: "flux", name: "Flux", desc: "State of the art. Лучший результат в индустрии на апрель 2026." },
-  { id: "imagen4", name: "Imagen 4", desc: "Модель от Google. Фотореализм, генерация текста на изображениях." },
-];
-
-const videoModels = [
-  { id: "kling", name: "Kling", desc: "Топовая модель видеогенерации. Кинематографичное качество с контролем движения и камеры." },
-  { id: "seedance", name: "Seedance", desc: "Кинематографичный мир от ByteDance. Плавные переходы, многокадровая съёмка. Скидка 60%." },
-  { id: "veo", name: "Veo", desc: "Топовая модель от Google. Физически корректные сцены, фотореалистичное видео." },
-  { id: "sora", name: "Sora", desc: "Флагман видеогенерации от OpenAI. Сложные многоплановые сцены." },
-  { id: "wan-ai", name: "Wan AI", desc: "Открытая модель видеогенерации. Доступная и быстрая, от 30 кредитов." },
-  { id: "hailuo", name: "Hailuo AI", desc: "Новый игрок с уникальным стилем генерации видео." },
-];
-
 export function DesignCreativitySection() {
+  const { t } = useTranslation();
+  const photoModels = [
+    { id: "midjourney", name: "Midjourney", desc: t("home.designCreativity.photoModels.midjourney.desc") },
+    { id: "nano-banana", name: "Nano Banana", desc: t("home.designCreativity.photoModels.nanoBanana.desc") },
+    { id: "seedream", name: "Seedream", desc: t("home.designCreativity.photoModels.seedream.desc") },
+    { id: "gpt-image", name: "GPT Image", desc: t("home.designCreativity.photoModels.gptImage.desc") },
+    { id: "flux", name: "Flux", desc: t("home.designCreativity.photoModels.flux.desc") },
+    { id: "imagen4", name: "Imagen 4", desc: t("home.designCreativity.photoModels.imagen4.desc") },
+  ];
+
+  const videoModels = [
+    { id: "kling", name: "Kling", desc: t("home.designCreativity.videoModels.kling.desc") },
+    { id: "seedance", name: "Seedance", desc: t("home.designCreativity.videoModels.seedance.desc") },
+    { id: "veo", name: "Veo", desc: t("home.designCreativity.videoModels.veo.desc") },
+    { id: "sora", name: "Sora", desc: t("home.designCreativity.videoModels.sora.desc") },
+    { id: "wan-ai", name: "Wan AI", desc: t("home.designCreativity.videoModels.wan.desc") },
+    { id: "hailuo", name: "Hailuo AI", desc: t("home.designCreativity.videoModels.hailuo.desc") },
+  ];
+
   const [tab, setTab] = useState<"photo" | "video">("photo");
   const models = tab === "photo" ? photoModels : videoModels;
   const [activeModel, setActiveModel] = useState(0);
@@ -46,9 +48,9 @@ export function DesignCreativitySection() {
       variants={stagger}
     >
       <motion.div variants={fadeUp} className="text-center mb-8">
-        <h2 className="text-2xl md:text-[32px] font-bold mb-3">Нейросети для дизайна и творчества</h2>
+        <h2 className="text-2xl md:text-[32px] font-bold mb-3">{t("home.designCreativity.heading")}</h2>
         <p className="text-base text-muted-foreground">
-          Создавайте контент и тренды на базе лучших ИИ
+          {t("home.designCreativity.subheading")}
         </p>
       </motion.div>
 
@@ -59,14 +61,14 @@ export function DesignCreativitySection() {
             className={cn("px-5 py-2 rounded-sm text-sm cursor-pointer", tab === "photo" ? "text-foreground font-medium" : "text-muted-foreground")}
             style={tab === "photo" ? { background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" } : undefined}
           >
-            ИИ Фото
+            {t("home.designCreativity.tabPhoto")}
           </button>
           <button
             onClick={() => handleTabChange("video")}
             className={cn("px-5 py-2 rounded-sm text-sm cursor-pointer", tab === "video" ? "text-foreground font-medium" : "text-muted-foreground")}
             style={tab === "video" ? { background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" } : undefined}
           >
-            ИИ Видео
+            {t("home.designCreativity.tabVideo")}
           </button>
         </div>
       </motion.div>
@@ -105,7 +107,7 @@ export function DesignCreativitySection() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-[8px] text-white text-sm font-semibold hover:opacity-90 transition-opacity w-fit"
             style={{ background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)" }}
           >
-            Начать создавать
+            {t("home.designCreativity.cta")}
           </Link>
         </div>
         <div

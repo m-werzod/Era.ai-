@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@/shared/routing";
 import { Clock, LogOut, Moon, Plus, Settings, Sun, User, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,12 +17,16 @@ const CREDITS_TOTAL = 5000;
 const EMAIL = "roman2024gerts@gmail.com";
 const DISPLAY_NAME = "Роман Г.";
 
+const NUMBER_LOCALES: Record<string, string> = { ru: "ru-RU", en: "en-US", uz: "uz-UZ" };
+
 export function UserDropdown() {
+  const { t, i18n } = useTranslation();
   const { logout, userName } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const initial = (userName || DISPLAY_NAME).charAt(0).toUpperCase();
   const pct = Math.min(100, Math.round((CREDITS_USED / CREDITS_TOTAL) * 100));
+  const numberLocale = NUMBER_LOCALES[i18n.language] ?? "ru-RU";
 
   const handleLogout = () => {
     logout();
@@ -35,7 +40,7 @@ export function UserDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label="Профиль"
+          aria-label={t("userMenu.profileAria")}
           className="w-9 h-9 rounded-full p-[2px] bg-gradient-to-br from-[#E85420] via-[#ff7a3d] to-[#ffb27a] hover:scale-105 transition-transform cursor-pointer"
         >
           <span className="w-full h-full rounded-full bg-card flex items-center justify-center font-mono text-sm font-semibold text-foreground">
@@ -64,10 +69,10 @@ export function UserDropdown() {
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <Zap className="h-3.5 w-3.5 text-primary" />
-              Кредиты
+              {t("userMenu.credits")}
             </span>
             <span className="font-mono tabular-nums text-sm text-foreground">
-              {CREDITS_USED.toLocaleString("ru-RU")} / {CREDITS_TOTAL.toLocaleString("ru-RU")}
+              {CREDITS_USED.toLocaleString(numberLocale)} / {CREDITS_TOTAL.toLocaleString(numberLocale)}
             </span>
           </div>
           <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mt-2">
@@ -76,14 +81,14 @@ export function UserDropdown() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="text-xs text-muted-foreground mt-2">Хватит на ~12 генераций</div>
+          <div className="text-xs text-muted-foreground mt-2">{t("userMenu.creditsRemaining", { count: 12 })}</div>
         </div>
 
         <div className="px-2 pb-2 pt-1">
           <Button asChild variant="default" size="sm" className="w-full">
             <Link to="/pricing">
               <Plus className="h-3.5 w-3.5" />
-              Пополнить
+              {t("userMenu.topUp")}
             </Link>
           </Button>
         </div>
@@ -93,15 +98,15 @@ export function UserDropdown() {
         <div className="space-y-0.5">
           <button className={itemCls} onClick={() => {}}>
             <User className="h-3.5 w-3.5 text-muted-foreground" />
-            Профиль
+            {t("userMenu.profile")}
           </button>
           <Link to="/history" className={itemCls}>
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            История
+            {t("userMenu.history")}
           </Link>
           <button className={itemCls}>
             <Settings className="h-3.5 w-3.5 text-muted-foreground" />
-            Настройки
+            {t("userMenu.settings")}
           </button>
           <button className={itemCls} onClick={toggleTheme}>
             {theme === "dark" ? (
@@ -109,14 +114,14 @@ export function UserDropdown() {
             ) : (
               <Moon className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            Тема: {theme === "dark" ? "Тёмная" : "Светлая"}
+            {theme === "dark" ? t("userMenu.themeDark") : t("userMenu.themeLight")}
           </button>
           <button
             className="flex items-center gap-2.5 h-9 px-3 rounded-md hover:bg-secondary text-sm cursor-pointer transition-colors text-destructive w-full"
             onClick={handleLogout}
           >
             <LogOut className="h-3.5 w-3.5" />
-            Выйти
+            {t("userMenu.logout")}
           </button>
         </div>
       </DropdownMenuContent>

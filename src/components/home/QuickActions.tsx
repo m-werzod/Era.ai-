@@ -1,15 +1,17 @@
 import { Link } from "@/shared/routing";
 import { Image as ImageIcon, Video, MessageSquare, Mic, Bot } from "lucide-react";
-
-const actions = [
-  { Icon: ImageIcon, label: "Создать изображение", to: "/design" },
-  { Icon: Video, label: "Создать видео", to: "/video" },
-  { Icon: MessageSquare, label: "Спросить ИИ", to: "/text" },
-  { Icon: Mic, label: "Озвучить текст", to: "/audio" },
-  { Icon: Bot, label: "ИИ Агенты", to: "/agents" },
-];
+import { useTranslation } from "react-i18next";
 
 export function QuickActions() {
+  const { t } = useTranslation();
+  const actions = [
+    { Icon: ImageIcon, label: t("home.quickActions.createImage"), to: "/design" },
+    { Icon: Video, label: t("home.quickActions.createVideo"), to: "/video" },
+    { Icon: MessageSquare, label: t("home.quickActions.askAI"), to: "/text" },
+    { Icon: Mic, label: t("home.quickActions.voiceText"), to: "/audio" },
+    { Icon: Bot, label: t("home.quickActions.aiAgents"), to: "/agents" },
+  ];
+
   return (
     <div className="max-w-[800px] mx-auto text-center" style={{ padding: "32px 16px" }}>
       <div className="flex justify-center gap-2.5 flex-wrap">

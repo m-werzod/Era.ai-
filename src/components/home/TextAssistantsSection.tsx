@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Send, PenLine, Code, GraduationCap, BarChart3, Music, Globe, FileText, Clapperboard, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -8,19 +9,19 @@ const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 
 const chatModels = ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok", "Perplexity"];
 
-const agents: { Icon: LucideIcon; name: string; desc: string }[] = [
-  { Icon: PenLine, name: "Копирайтер", desc: "Продающие тексты и посты" },
-  { Icon: Code, name: "Программист", desc: "Код на любом языке" },
-  { Icon: GraduationCap, name: "Репетитор", desc: "Обучение и экзамены" },
-  { Icon: BarChart3, name: "Маркетолог", desc: "Стратегии и аналитика" },
-  { Icon: Music, name: "MUSIC_Prompt", desc: "Промпты для Suno" },
-  { Icon: Globe, name: "Language teacher", desc: "Изучение языков" },
-  { Icon: FileText, name: "Резюме", desc: "Составление резюме" },
-  { Icon: Clapperboard, name: "Сценарист", desc: "Сценарии и сюжеты" },
-  { Icon: Sparkles, name: "Сунь Цзы", desc: "Стратегии и мудрость" },
-];
-
 export function TextAssistantsSection() {
+  const { t } = useTranslation();
+  const agents: { Icon: LucideIcon; name: string; desc: string }[] = [
+    { Icon: PenLine, name: t("home.textAssistants.agents.copywriter.name"), desc: t("home.textAssistants.agents.copywriter.desc") },
+    { Icon: Code, name: t("home.textAssistants.agents.developer.name"), desc: t("home.textAssistants.agents.developer.desc") },
+    { Icon: GraduationCap, name: t("home.textAssistants.agents.tutor.name"), desc: t("home.textAssistants.agents.tutor.desc") },
+    { Icon: BarChart3, name: t("home.textAssistants.agents.marketer.name"), desc: t("home.textAssistants.agents.marketer.desc") },
+    { Icon: Music, name: t("home.textAssistants.agents.musicPrompt.name"), desc: t("home.textAssistants.agents.musicPrompt.desc") },
+    { Icon: Globe, name: t("home.textAssistants.agents.languageTeacher.name"), desc: t("home.textAssistants.agents.languageTeacher.desc") },
+    { Icon: FileText, name: t("home.textAssistants.agents.resume.name"), desc: t("home.textAssistants.agents.resume.desc") },
+    { Icon: Clapperboard, name: t("home.textAssistants.agents.screenwriter.name"), desc: t("home.textAssistants.agents.screenwriter.desc") },
+    { Icon: Sparkles, name: t("home.textAssistants.agents.sunTzu.name"), desc: t("home.textAssistants.agents.sunTzu.desc") },
+  ];
   const [activeModel, setActiveModel] = useState(0);
 
   return (
@@ -33,9 +34,9 @@ export function TextAssistantsSection() {
       variants={stagger}
     >
       <motion.div variants={fadeUp} className="text-center mb-10">
-        <h2 className="text-2xl md:text-[32px] font-bold mb-3">Нейросети и Ассистенты для текста</h2>
+        <h2 className="text-2xl md:text-[32px] font-bold mb-3">{t("home.textAssistants.heading")}</h2>
         <p className="text-base text-muted-foreground">
-          ChatGPT, Claude, Gemini, DeepSeek — все модели в одном чате
+          {t("home.textAssistants.subheading")}
         </p>
       </motion.div>
 
@@ -68,7 +69,7 @@ export function TextAssistantsSection() {
                 className="max-w-[80%] px-4 py-3 rounded-2xl rounded-br-md text-sm"
                 style={{ background: "rgba(232, 84, 32,0.15)", color: "var(--seo-heading)" }}
               >
-                Напиши продающий текст для лендинга
+                {t("home.textAssistants.samplePrompt")}
               </div>
             </div>
             <div className="flex justify-start">
@@ -76,7 +77,7 @@ export function TextAssistantsSection() {
                 className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md text-sm leading-relaxed"
                 style={{ background: "var(--seo-pill-bg)", color: "var(--seo-text)" }}
               >
-                Конечно! Вот продающий текст для лендинга: «Откройте мир возможностей с нашим продуктом. Автоматизируйте рутинные задачи, экономьте время и увеличивайте продажи...»
+                {t("home.textAssistants.sampleReply")}
               </div>
             </div>
           </div>
@@ -86,7 +87,7 @@ export function TextAssistantsSection() {
             style={{ background: "var(--seo-pill-bg)" }}
           >
             <span className="flex-1 text-sm" style={{ color: "var(--seo-text-muted)" }}>
-              Напишите запрос или идею для текста
+              {t("home.textAssistants.inputPlaceholder")}
             </span>
             <button
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -114,7 +115,7 @@ export function TextAssistantsSection() {
           </div>
           <div className="text-center mt-4">
             <button className="text-sm hover:underline" style={{ color: "hsl(var(--primary))" }}>
-              Показать ещё →
+              {t("home.textAssistants.showMore")}
             </button>
           </div>
         </div>

@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 
-const faqItems = [
-  { q: "Можно ли попробовать бесплатно?", a: "Да. При регистрации вы получаете бесплатные кредиты для тестирования всех нейросетей. Карта не требуется." },
-  { q: "Какие нейросети доступны по подписке?", a: "Более 90 моделей: ChatGPT, Claude, Gemini, MidJourney, Nano Banana, Kling, Seedance, Sora, Veo, ElevenLabs, Suno и другие." },
-  { q: "Что такое кредиты?", a: "Кредиты (cr) — это внутренняя валюта ERA2. Каждая генерация стоит определённое количество кредитов. Стоимость зависит от модели." },
-  { q: "Нужен ли VPN?", a: "Нет. Все нейросети на ERA2 работают напрямую из России без VPN и ограничений." },
-  { q: "Как оплатить подписку?", a: "Картой любого российского банка. Также доступна оплата через СБП и ЮKassa." },
-  { q: "Сгорают ли кредиты?", a: "Нет. Неиспользованные кредиты сохраняются и переносятся на следующий период." },
-  { q: "Можно ли использовать для коммерческих проектов?", a: "Да. Весь контент, созданный через ERA2, можно использовать в коммерческих целях." },
-];
+const FAQ_KEYS = ["free", "models", "credits", "vpn", "payment", "expiry", "commercial"] as const;
 
 export function HomeFAQ() {
+  const { t } = useTranslation();
+  const faqItems = FAQ_KEYS.map((key) => ({
+    q: t(`home.faq.items.${key}.q`),
+    a: t(`home.faq.items.${key}.a`),
+  }));
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
@@ -21,9 +19,9 @@ export function HomeFAQ() {
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-[60px]">
           {/* Left column */}
           <div className="lg:w-[30%] shrink-0">
-            <h2 className="text-[32px] font-extrabold leading-[1.2]" style={{ color: "var(--text-primary)" }}>Важные вопросы</h2>
+            <h2 className="text-[32px] font-extrabold leading-[1.2]" style={{ color: "var(--text-primary)" }}>{t("home.faq.heading")}</h2>
             <p className="text-[14px] mt-4" style={{ color: "var(--text-tertiary)" }}>
-              Если у вас возникли сложности, обратитесь в службу заботы
+              {t("home.faq.subheading")}
             </p>
             <a
               href="https://t.me/era2_support"
@@ -32,7 +30,7 @@ export function HomeFAQ() {
               className="inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-[8px] text-[14px] text-[hsl(var(--primary))] border border-[rgba(232, 84, 32,0.2)] hover:bg-[rgba(232, 84, 32,0.15)] transition-colors"
               style={{ background: "rgba(232, 84, 32,0.1)" }}
             >
-              ✈ Написать в поддержку
+              {t("home.faq.contactSupport")}
             </a>
           </div>
 

@@ -1,6 +1,7 @@
 import { Link } from "@/shared/routing";
 import { Image as ImageIcon, Video, MessageCircle, Music, Bot } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { aiPhotos, aiVideo, aiLandscapes, aiArt, aiProducts } from "@/entities/generation";
 
 const cards = [
@@ -11,22 +12,23 @@ const cards = [
   { image: aiProducts[0] },
 ];
 
-const actions: { Icon: LucideIcon; label: string; to: string }[] = [
-  { Icon: ImageIcon, label: "Создать изображение", to: "/design" },
-  { Icon: Video, label: "Создать видео", to: "/video" },
-  { Icon: MessageCircle, label: "Начать диалог", to: "/text" },
-  { Icon: Music, label: "Записать песню", to: "/audio" },
-  { Icon: Bot, label: "Запустить агента", to: "/agents" },
-];
-
 export function StartCreatingSection() {
+  const { t } = useTranslation();
+  const actions: { Icon: LucideIcon; label: string; to: string }[] = [
+    { Icon: ImageIcon, label: t("home.startCreating.actions.createImage"), to: "/design" },
+    { Icon: Video, label: t("home.startCreating.actions.createVideo"), to: "/video" },
+    { Icon: MessageCircle, label: t("home.startCreating.actions.startChat"), to: "/text" },
+    { Icon: Music, label: t("home.startCreating.actions.recordSong"), to: "/audio" },
+    { Icon: Bot, label: t("home.startCreating.actions.launchAgent"), to: "/agents" },
+  ];
+
   return (
     <section style={{ padding: "80px 0" }}>
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-          <h2 className="text-[28px] font-bold" style={{ color: "var(--text-primary)" }}>Начните создавать с лучшими нейросетями</h2>
+          <h2 className="text-[28px] font-bold" style={{ color: "var(--text-primary)" }}>{t("home.startCreating.heading")}</h2>
           <p className="text-[15px] max-w-[400px]" style={{ color: "var(--text-secondary)" }}>
-            Создавайте изображения, видео и улучшайте контент с помощью ИИ.
+            {t("home.startCreating.subheading")}
           </p>
         </div>
 

@@ -1,29 +1,7 @@
 import { Link } from "@/shared/routing";
 import { Youtube } from "lucide-react";
 import { SiTelegram, SiX } from "@icons-pack/react-simple-icons";
-
-const productLinks = [
-  { label: "Главная", to: "/" },
-  { label: "Текст", to: "/tools/text-generation" },
-  { label: "Изображения", to: "/tools/image-generation" },
-  { label: "Видео", to: "/tools/video-generation" },
-  { label: "Аудио", to: "/tools/audio-generation" },
-  { label: "Агенты", to: "/tools/agents" },
-  { label: "Тарифы", to: "/pricing" },
-];
-
-const resourcesLinks = [
-  { label: "Документация", to: "#" },
-  { label: "История изменений", to: "#" },
-  { label: "FAQ", to: "#" },
-];
-
-const companyLinks = [
-  { label: "О нас", to: "#" },
-  { label: "Контакты", to: "#" },
-  { label: "Поддержка", to: "#" },
-  { label: "Telegram-канал", to: "#" },
-];
+import { useTranslation } from "react-i18next";
 
 function FooterColumn({ title, links }: { title: string; links: { label: string; to: string }[] }) {
   return (
@@ -48,6 +26,31 @@ function FooterColumn({ title, links }: { title: string; links: { label: string;
 }
 
 export function Footer() {
+  const { t } = useTranslation();
+
+  const productLinks = [
+    { label: t("footer.product.home"), to: "/" },
+    { label: t("footer.product.text"), to: "/tools/text-generation" },
+    { label: t("footer.product.images"), to: "/tools/image-generation" },
+    { label: t("footer.product.video"), to: "/tools/video-generation" },
+    { label: t("footer.product.audio"), to: "/tools/audio-generation" },
+    { label: t("footer.product.agents"), to: "/tools/agents" },
+    { label: t("footer.product.pricing"), to: "/pricing" },
+  ];
+
+  const resourcesLinks = [
+    { label: t("footer.resources.docs"), to: "#" },
+    { label: t("footer.resources.changelog"), to: "#" },
+    { label: t("footer.resources.faq"), to: "#" },
+  ];
+
+  const companyLinks = [
+    { label: t("footer.company.about"), to: "#" },
+    { label: t("footer.company.contacts"), to: "#" },
+    { label: t("footer.company.support"), to: "#" },
+    { label: t("footer.company.telegram"), to: "#" },
+  ];
+
   return (
     <footer className="border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] mt-20">
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-12">
@@ -73,7 +76,7 @@ export function Footer() {
             </span>
           </Link>
           <p className="mt-4 text-sm text-[hsl(var(--muted-foreground))] max-w-[320px] leading-relaxed">
-            Все нейросети в одном месте. Единая подписка, оплата в рублях.
+            {t("footer.tagline")}
           </p>
           <div className="flex gap-2 mt-5">
             {[
@@ -93,9 +96,9 @@ export function Footer() {
           </div>
         </div>
 
-        <FooterColumn title="Продукт" links={productLinks} />
-        <FooterColumn title="Ресурсы" links={resourcesLinks} />
-        <FooterColumn title="Компания" links={companyLinks} />
+        <FooterColumn title={t("footer.columns.product")} links={productLinks} />
+        <FooterColumn title={t("footer.columns.resources")} links={resourcesLinks} />
+        <FooterColumn title={t("footer.columns.company")} links={companyLinks} />
       </div>
 
       <div className="border-t border-[hsl(var(--border))]">

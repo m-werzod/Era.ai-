@@ -5,6 +5,7 @@ import {
   RectangleHorizontal, Clock, Monitor, Disc,
   MessageSquare, Image as ImageTab, Video as VideoTab, AudioLines,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 import { ModelPickerPill, type PickerProvider } from "@/features/model-picker";
 import { imageProviders } from "@/entities/ai-model";
@@ -20,20 +21,6 @@ interface PromptWindowProps {
   onPromptChange: (v: string) => void;
   onGenerate: () => void;
 }
-
-const TABS: { id: GenType; label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }> }[] = [
-  { id: "text", label: "Текст", Icon: MessageSquare },
-  { id: "image", label: "Изображения", Icon: ImageTab },
-  { id: "video", label: "Видео", Icon: VideoTab },
-  { id: "audio", label: "Аудио", Icon: AudioLines },
-];
-
-const PLACEHOLDERS: Record<GenType, string> = {
-  text: "Спроси что угодно...",
-  image: "Опиши изображение, которое нужно создать...",
-  video: "Опиши свою идею для генерации видео...",
-  audio: "Опиши музыку, голос или звук...",
-};
 
 const CREDITS: Record<GenType, number> = {
   text: 5, image: 30, video: 75, audio: 60,
@@ -162,6 +149,12 @@ function ParamPill({
 
 /* ─── Per-type params row ─── */
 function ParamsRow({ type }: { type: GenType }) {
+  const { t } = useTranslation();
+  const systemPromptOptions = t("home.promptWindow.systemPromptOptions", { returnObjects: true }) as string[];
+  const variantsOptions = t("home.promptWindow.variantsOptions", { returnObjects: true }) as string[];
+  const audioDurationOptions = t("home.promptWindow.audioDurationOptions", { returnObjects: true }) as string[];
+  const genreOptions = t("home.promptWindow.genreOptions", { returnObjects: true }) as string[];
+
   // ── Build provider lists per type from real data ──
   const textProviders: PickerProvider[] = getModelsByCategory("text").map((m) => ({
     id: m.id,
@@ -232,14 +225,14 @@ function ParamsRow({ type }: { type: GenType }) {
     pid: textProviders[0]?.id ?? "",
     sid: textProviders[0]?.subModels[0]?.id ?? "",
   }));
-  const [textPrompt, setTextPrompt] = useState("Без пресета");
+  const [textPrompt, setTextPrompt] = useState(systemPromptOptions[0]);
 
   const [imgSel, setImgSel] = useState(() => ({
     pid: imgPickerProviders[0]?.id ?? "",
     sid: imgPickerProviders[0]?.subModels[0]?.id ?? "",
   }));
   const [imgSize, setImgSize] = useState("1024×1024");
-  const [imgVar, setImgVar] = useState("1 вариант");
+  const [imgVar, setImgVar] = useState(variantsOptions[0]);
 
   const [vidSel, setVidSel] = useState(() => ({
     pid: vidPickerProviders[0]?.id ?? "",
@@ -253,8 +246,8 @@ function ParamsRow({ type }: { type: GenType }) {
     pid: audPickerProviders[0]?.id ?? "",
     sid: audPickerProviders[0]?.subModels[0]?.id ?? "",
   }));
-  const [audDur, setAudDur] = useState("3 мин");
-  const [audGenre, setAudGenre] = useState("Поп");
+  const [audDur, setAudDur] = useState(audioDurationOptions[2]);
+  const [audGenre, setAudGenre] = useState(genreOptions[0]);
 
   if (type === "text") {
     return (
@@ -265,8 +258,8 @@ function ParamsRow({ type }: { type: GenType }) {
           selectedSubModelId={textSel.sid}
           onSelect={(pid, sid) => setTextSel({ pid, sid })}
         />
-        <ParamPill Icon={FileText} label="Системный промпт" value={textPrompt} onChange={setTextPrompt}
-          options={["Без пресета", "Копирайтер", "Программист", "Учитель", "Переводчик"]} />
+        <ParamPill Icon={FileText} label={t("home.promptWindow.params.systemPrompt")} value={textPrompt} onChange={setTextPrompt}
+          options={systemPromptOptions} />
         
       </>
     );
@@ -280,10 +273,10 @@ function ParamsRow({ type }: { type: GenType }) {
           selectedSubModelId={imgSel.sid}
           onSelect={(pid, sid) => setImgSel({ pid, sid })}
         />
-        <ParamPill Icon={Square} label="Размер" value={imgSize} onChange={setImgSize}
+        <ParamPill Icon={Square} label={t("home.promptWindow.params.size")} value={imgSize} onChange={setImgSize}
           options={["512×512", "1024×1024", "1536×1024", "1024×1536"]} mono />
-        <ParamPill Icon={Hash} label="Варианты" value={imgVar} onChange={setImgVar}
-          options={["1 вариант", "2 варианта", "4 варианта"]} />
+        <ParamPill Icon={Hash} label={t("home.promptWindow.params.variants")} value={imgVar} onChange={setImgVar}
+          options={variantsOptions} />
         
       </>
     );
@@ -297,11 +290,11 @@ function ParamsRow({ type }: { type: GenType }) {
           selectedSubModelId={vidSel.sid}
           onSelect={(pid, sid) => setVidSel({ pid, sid })}
         />
-        <ParamPill Icon={RectangleHorizontal} label="Формат" value={vidAspect} onChange={setVidAspect}
+        <ParamPill Icon={RectangleHorizontal} label={t("home.promptWindow.params.aspectRatio")} value={vidAspect} onChange={setVidAspect}
           options={["16:9", "9:16", "1:1", "4:3"]} mono />
-        <ParamPill Icon={Clock} label="Длительность" value={vidDur} onChange={setVidDur}
+        <ParamPill Icon={Clock} label={t("home.promptWindow.params.duration")} value={vidDur} onChange={setVidDur}
           options={["3s", "5s", "8s", "10s"]} mono />
-        <ParamPill Icon={Monitor} label="Разрешение" value={vidRes} onChange={setVidRes}
+        <ParamPill Icon={Monitor} label={t("home.promptWindow.params.resolution")} value={vidRes} onChange={setVidRes}
           options={["480p", "720p", "1080p"]} mono />
         
       </>
@@ -315,19 +308,34 @@ function ParamsRow({ type }: { type: GenType }) {
         selectedSubModelId={audSel.sid}
         onSelect={(pid, sid) => setAudSel({ pid, sid })}
       />
-      <ParamPill Icon={Clock} label="Длительность" value={audDur} onChange={setAudDur}
-        options={["1 мин", "2 мин", "3 мин", "4 мин"]} mono />
-      <ParamPill Icon={Disc} label="Жанр" value={audGenre} onChange={setAudGenre}
-        options={["Поп", "Рок", "Электронная", "Lo-Fi", "Джаз", "Эмбиент"]} />
+      <ParamPill Icon={Clock} label={t("home.promptWindow.params.duration")} value={audDur} onChange={setAudDur}
+        options={audioDurationOptions} mono />
+      <ParamPill Icon={Disc} label={t("home.promptWindow.params.genre")} value={audGenre} onChange={setAudGenre}
+        options={genreOptions} />
       
     </>
   );
 }
 
 export function PromptWindow({ type, onTypeChange, prompt, onPromptChange, onGenerate }: PromptWindowProps) {
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const active = focused || prompt.length > 0;
   const credits = CREDITS[type];
+
+  const TABS: { id: GenType; label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }> }[] = [
+    { id: "text", label: t("sidebar.genItems.text"), Icon: MessageSquare },
+    { id: "image", label: t("sidebar.genItems.images"), Icon: ImageTab },
+    { id: "video", label: t("sidebar.genItems.video"), Icon: VideoTab },
+    { id: "audio", label: t("sidebar.genItems.audio"), Icon: AudioLines },
+  ];
+
+  const PLACEHOLDERS: Record<GenType, string> = {
+    text: t("home.promptWindow.placeholders.text"),
+    image: t("home.promptWindow.placeholders.image"),
+    video: t("home.promptWindow.placeholders.video"),
+    audio: t("home.promptWindow.placeholders.audio"),
+  };
 
   // Shared border color so active tab seamlessly merges with card top
   const cardBorder = active
@@ -420,7 +428,7 @@ export function PromptWindow({ type, onTypeChange, prompt, onPromptChange, onGen
               e.currentTarget.style.borderColor = "var(--c-line)";
               e.currentTarget.style.color = "var(--c-fg-mute)";
             }}
-            aria-label="Прикрепить"
+            aria-label={t("home.promptWindow.attachAria")}
           >
             <Plus size={18} strokeWidth={1.8} />
           </button>
@@ -470,7 +478,7 @@ export function PromptWindow({ type, onTypeChange, prompt, onPromptChange, onGen
             }}
           >
             <Sparkles size={14} strokeWidth={1.8} />
-            <span>Генерировать</span>
+            <span>{t("home.promptWindow.generate")}</span>
             <span style={{ color: "rgba(255,255,255,0.5)" }}>·</span>
             <Zap size={13} strokeWidth={1.8} />
             <span className="font-mono tabular-nums">{credits}</span>

@@ -4,6 +4,7 @@ import {
   CreditCard, History, ChevronLeft, ChevronDown, X, ArrowRight, Gem, Plus, Gift, Copy, ListChecks,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCopyToast } from "@/features/copy-toast";
 import { StatusBadge } from "@/shared/ui/era/StatusBadge";
 import { getHistoryItems } from "@/entities/history";
@@ -24,16 +25,6 @@ const typeIcons: Record<"text" | "image" | "video" | "audio", React.ElementType>
   audio: Mic,
 };
 
-const formatTime = (date: Date) => {
-  const diff = Date.now() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins} мин`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} ч`;
-  const days = Math.floor(hours / 24);
-  return `${days} д`;
-};
-
 interface SidebarProps {
   open: boolean;
   collapsed: boolean;
@@ -41,31 +32,42 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-const genItems = [
-  { icon: MessageSquare, label: "Текст", path: "/text" },
-  { icon: Image, label: "Изображения", path: "/design" },
-  { icon: Video, label: "Видео", path: "/video" },
-  { icon: Mic, label: "Аудио", path: "/audio" },
-];
-
-const toolItems: Array<{ icon: React.ElementType; label: string; path: string; badge?: "new" | "soon" }> = [
-  { icon: Bot, label: "Агенты / Ассистенты", path: "/agents" },
-  { icon: LayoutGrid, label: "Все нейросети", path: "/toolkit" },
-  { icon: Layers, label: "Инструменты", path: "/studios" },
-];
-
-const bottomItems = [
-  { icon: ListChecks, label: "Очередь", path: "/queue" },
-  { icon: CreditCard, label: "Тарифы", path: "/pricing" },
-  { icon: History, label: "История", path: "/history" },
-];
-
 export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const copy = useCopyToast();
   const [recentOpen, setRecentOpen] = useState(true);
   const [showReferral, setShowReferral] = useState(false);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+
+  const formatTime = (date: Date) => {
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return t("sidebar.time.minutes", { count: mins });
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return t("sidebar.time.hours", { count: hours });
+    const days = Math.floor(hours / 24);
+    return t("sidebar.time.days", { count: days });
+  };
+
+  const genItems = [
+    { icon: MessageSquare, label: t("sidebar.genItems.text"), path: "/text" },
+    { icon: Image, label: t("sidebar.genItems.images"), path: "/design" },
+    { icon: Video, label: t("sidebar.genItems.video"), path: "/video" },
+    { icon: Mic, label: t("sidebar.genItems.audio"), path: "/audio" },
+  ];
+
+  const toolItems: Array<{ icon: React.ElementType; label: string; path: string; badge?: "new" | "soon" }> = [
+    { icon: Bot, label: t("sidebar.toolItems.agents"), path: "/agents" },
+    { icon: LayoutGrid, label: t("sidebar.toolItems.allModels"), path: "/toolkit" },
+    { icon: Layers, label: t("sidebar.toolItems.tools"), path: "/studios" },
+  ];
+
+  const bottomItems = [
+    { icon: ListChecks, label: t("sidebar.bottomItems.queue"), path: "/queue" },
+    { icon: CreditCard, label: t("sidebar.bottomItems.pricing"), path: "/pricing" },
+    { icon: History, label: t("sidebar.bottomItems.history"), path: "/history" },
+  ];
 
   useEffect(() => {
     let isActive = true;
@@ -171,7 +173,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
 
         {/* Top: Home + New chat */}
         <div className="px-0 pt-3 space-y-0.5">
-          {renderItem({ icon: Home, label: "Главная", path: "/" })}
+          {renderItem({ icon: Home, label: t("sidebar.home"), path: "/" })}
           {!collapsed ? (
             <Link
               to="/text"
@@ -184,7 +186,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
               }}
             >
               <Plus className="h-4 w-4" />
-              Новый чат
+              {t("sidebar.newChat")}
             </Link>
           ) : (
             <Link
@@ -200,7 +202,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
 
         {/* Scrollable nav */}
         <div className="flex-1 overflow-y-auto space-y-0.5 scrollbar-thin">
-          {renderSection("Генерация", genItems)}
+          {renderSection(t("sidebar.sections.generation"), genItems)}
 
           {/* Секция: Недавние чаты */}
           {!collapsed && (
@@ -213,7 +215,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                   <ChevronDown
                     className={cn("h-3 w-3 transition-transform duration-200", !recentOpen && "-rotate-90")}
                   />
-                  Недавние
+                  {t("sidebar.recent")}
                 </button>
                 <Link to="/history" className="text-muted-foreground hover:text-foreground" onClick={() => { if (window.innerWidth < 1024) onClose(); }}>
                   <History className="h-3 w-3" />
@@ -248,7 +250,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                     className="flex items-center gap-2 mx-2 px-3 py-2 mt-1 text-[12px] text-muted-foreground hover:text-primary transition-colors"
                   >
                     <ArrowRight className="h-3 w-3" />
-                    Вся история
+                    {t("sidebar.allHistory")}
                   </Link>
                 </>
               )}
@@ -262,17 +264,17 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
             </div>
           )}
 
-          {renderSection("Инструменты", toolItems)}
+          {renderSection(t("sidebar.sections.tools"), toolItems)}
           {renderSection("", bottomItems)}
 
           {!collapsed && (
             <div className="mx-3 mt-5 mb-3 p-3 rounded-[12px]" style={{ background: "rgba(232,84,32,0.06)", border: "1px solid rgba(232,84,32,0.15)" }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <Gift className="h-3.5 w-3.5" style={{ color: "hsl(var(--primary))" }} />
-                <span className="text-[12px] font-semibold text-foreground">Пригласите друга</span>
+                <span className="text-[12px] font-semibold text-foreground">{t("sidebar.referral.title")}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-snug mb-2.5">
-                Получите 100 кредитов за каждого приглашённого друга
+                {t("sidebar.referral.desc")}
               </p>
               <button
                 onClick={() => setShowReferral(true)}
@@ -284,7 +286,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                 }}
               >
                 <Copy className="h-3 w-3" />
-                Копировать ссылку
+                {t("sidebar.referral.copyLink")}
               </button>
             </div>
           )}
@@ -302,7 +304,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
             <Gem className="h-3.5 w-3.5 shrink-0" />
             {!collapsed && (
               <>
-                <span className="flex-1">Обновить план</span>
+                <span className="flex-1">{t("sidebar.upgradePlan")}</span>
                 <ArrowRight className="h-3 w-3 ml-auto" />
               </>
             )}

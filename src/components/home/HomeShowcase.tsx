@@ -1,15 +1,9 @@
+import { useTranslation } from "react-i18next";
 import { Eyebrow } from "@/shared/ui/era";
 import { ModelCard } from "@/components/ModelCard";
 import { UseCaseChip } from "@/components/UseCaseChip";
 import { searchableModels, type SearchableModelType } from "@/config/searchableModels";
 import { useCases } from "@/config/useCases";
-
-const eyebrowLabel: Record<SearchableModelType, string> = {
-  text: "ТЕКСТОВЫЕ МОДЕЛИ",
-  image: "МОДЕЛИ ИЗОБРАЖЕНИЙ",
-  video: "ВИДЕО-МОДЕЛИ",
-  audio: "АУДИО-МОДЕЛИ",
-};
 
 interface Props {
   type: SearchableModelType;
@@ -17,6 +11,13 @@ interface Props {
 }
 
 export function HomeShowcase({ type, onPickPrompt }: Props) {
+  const { t } = useTranslation();
+  const eyebrowLabel: Record<SearchableModelType, string> = {
+    text: t("home.showcase.eyebrow.text"),
+    image: t("home.showcase.eyebrow.image"),
+    video: t("home.showcase.eyebrow.video"),
+    audio: t("home.showcase.eyebrow.audio"),
+  };
   const models = searchableModels.filter((m) => m.type === type);
   const cases = useCases[type] ?? [];
 
@@ -26,7 +27,7 @@ export function HomeShowcase({ type, onPickPrompt }: Props) {
       <section className="max-w-6xl mx-auto px-6 mt-16">
         <Eyebrow>{eyebrowLabel[type]}</Eyebrow>
         <h2 className="text-2xl font-semibold tracking-tight mt-3 mb-6 text-foreground">
-          Выберите движок генерации
+          {t("home.showcase.chooseEngine")}
         </h2>
         <div
           className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 snap-x"
@@ -40,9 +41,9 @@ export function HomeShowcase({ type, onPickPrompt }: Props) {
 
       {/* ─── Use cases ─── */}
       <section className="max-w-6xl mx-auto px-6 mt-16">
-        <Eyebrow>ИДЕИ ДЛЯ СТАРТА</Eyebrow>
+        <Eyebrow>{t("home.showcase.ideasEyebrow")}</Eyebrow>
         <h2 className="text-2xl font-semibold tracking-tight mt-3 mb-6 text-foreground">
-          С чего начать?
+          {t("home.showcase.ideasHeading")}
         </h2>
         <div className="flex flex-wrap gap-2">
           {cases.map((uc) => (

@@ -1,4 +1,5 @@
 import { Link } from "@/shared/routing";
+import { useTranslation } from "react-i18next";
 
 const modelTags = [
   "ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok", "Perplexity",
@@ -9,9 +10,10 @@ const modelTags = [
 ];
 
 export function ModelTagsCloud() {
+  const { t } = useTranslation();
   return (
     <section style={{ padding: "60px 0" }}>
-      <h2 className="text-2xl font-bold text-center mb-8">Все нейросети на ERA2</h2>
+      <h2 className="text-2xl font-bold text-center mb-8">{t("home.tagsCloud.heading")}</h2>
       <div
         className="flex flex-wrap justify-center gap-2 mx-auto px-4"
         style={{ maxWidth: 900 }}
