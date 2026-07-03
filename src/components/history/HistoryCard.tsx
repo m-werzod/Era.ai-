@@ -160,11 +160,6 @@ export function HistoryCard({ item, onClick, onToggleFavorite }: Props) {
     </div>
   );
 }
-          
-
-
-
-
 
 
 

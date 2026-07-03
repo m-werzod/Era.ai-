@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, Paperclip, Send, Globe, Brain, Copy, RefreshCw, ThumbsUp, ThumbsDown, Settings, PenLine, Lightbulb, Code, Languages, Search, BarChart3 } from "lucide-react";
+import { ChevronDown, Paperclip, Send, Globe, Brain, Copy, RefreshCw, ThumbsUp, ThumbsDown, Settings, Trash2 } from "lucide-react";
 import { textProviders, textQuickActions } from "@/entities/ai-model";
 import { streamAI, type ChatMessage } from "@/services/aiApi";
 import { TextModelSelector } from "@/features/model-picker";
@@ -221,7 +221,7 @@ const TextPage = () => {
         {!hasMessages ? (
           <WelcomeScreen providerId={providerId} providerName={provider.name} subModelName={subModel.name} onQuickAction={handleQuickAction} colors={c} />
         ) : (
-          <ChatMessages messages={messages} isGenerating={isGenerating} currentModel={subModel.name} currentProviderId={provider.id} colors={c} />
+          <ChatMessages messages={messages} isGenerating={isGenerating} currentModel={subModel.name} currentProviderId={provider.id} colors={c} onRegenerate={handleSend} />
         )}
         <div ref={chatEndRef} />
 
@@ -299,8 +299,30 @@ const TextPage = () => {
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = c.textSecondary; }}
                 title="Прикрепить файл"
               >
-                <Paperclip className="w-[18px] h-[18px]" />
+                <Paperclip className="w-4.5 h-4.5" />
               </button>
+              <button
+                onClick={() => setSystemDrawerOpen(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ color: systemPrompt ? c.textAccent : c.textSecondary }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = c.pillBg; e.currentTarget.style.color = c.textPrimary; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                title="Системный промпт"
+              >
+                <Settings className="w-4.5 h-4.5" />
+              </button>
+              {messages.length > 0 && (
+                <button
+                  onClick={() => setMessages([])}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ color: c.textSecondary }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = c.pillBg; e.currentTarget.style.color = "#ef4444"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = c.textSecondary; }}
+                  title="Очистить чат"
+                >
+                  <Trash2 className="w-4.5 h-4.5" />
+                </button>
+              )}
 
               <button
                 onClick={() => setSelectorOpen(true)}
@@ -379,6 +401,121 @@ const TextPage = () => {
   );
 };
 
+/* ─── Lightweight markdown renderer ─── */
+function MdText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const result: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      result.push(
+        <pre key={i} className="my-2 rounded-xl overflow-x-auto p-3 text-[12px] font-mono leading-relaxed" style={{ background: "var(--bg-pill)" }}>
+          <code>{codeLines.join("\n")}</code>
+        </pre>
+      );
+      i++;
+      continue;
+    }
+
+    // Headings
+    if (/^#{1,3}\s/.test(line)) {
+      const level = line.match(/^(#{1,3})/)?.[1].length ?? 1;
+      const txt = line.replace(/^#{1,3}\s/, "");
+      const cls = level === 1 ? "text-base font-bold mt-3 mb-1" : level === 2 ? "text-[15px] font-semibold mt-2 mb-1" : "text-sm font-semibold mt-1.5 mb-0.5";
+      result.push(<p key={i} className={cls}>{inlineFormat(txt)}</p>);
+      i++;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith("> ")) {
+      result.push(
+        <blockquote key={i} className="border-l-2 pl-3 my-1 italic text-muted-foreground" style={{ borderColor: "hsl(var(--primary))" }}>
+          {inlineFormat(line.slice(2))}
+        </blockquote>
+      );
+      i++;
+      continue;
+    }
+
+    // Unordered list
+    if (/^[-*]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^[-*]\s/, ""));
+        i++;
+      }
+      result.push(
+        <ul key={i} className="my-1 pl-4 list-disc space-y-0.5">
+          {items.map((item, j) => <li key={j}>{inlineFormat(item)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\.\s/, ""));
+        i++;
+      }
+      result.push(
+        <ol key={i} className="my-1 pl-4 list-decimal space-y-0.5">
+          {items.map((item, j) => <li key={j}>{inlineFormat(item)}</li>)}
+        </ol>
+      );
+      continue;
+    }
+
+    // Empty line → paragraph break
+    if (line.trim() === "") {
+      result.push(<div key={i} className="h-1.5" />);
+      i++;
+      continue;
+    }
+
+    // Normal paragraph line
+    result.push(<p key={i} className="leading-relaxed">{inlineFormat(line)}</p>);
+    i++;
+  }
+
+  return <div className="space-y-0.5 text-sm">{result}</div>;
+}
+
+function inlineFormat(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  // Matches: `code`, **bold**, *italic*
+  const re = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const token = match[0];
+    if (token.startsWith("`"))
+      parts.push(<code key={key++} className="px-1 py-0.5 rounded text-[12px] font-mono" style={{ background: "var(--bg-pill)", color: "hsl(var(--primary))" }}>{token.slice(1, -1)}</code>);
+    else if (token.startsWith("**"))
+      parts.push(<strong key={key++} className="font-semibold">{token.slice(2, -2)}</strong>);
+    else
+      parts.push(<em key={key++} className="italic">{token.slice(1, -1)}</em>);
+    last = match.index + token.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.length === 1 && typeof parts[0] === "string" ? parts[0] : <>{parts}</>;
+}
+
 /* ─── Welcome screen ─── */
 
 function WelcomeScreen({ providerId, providerName, subModelName, onQuickAction, colors: c }: {
@@ -417,10 +554,19 @@ function WelcomeScreen({ providerId, providerName, subModelName, onQuickAction, 
 
 /* ─── Chat messages ─── */
 
-function ChatMessages({ messages, isGenerating, currentModel, currentProviderId, colors: c }: {
+function ChatMessages({ messages, isGenerating, currentModel, currentProviderId, colors: c, onRegenerate }: {
   messages: Message[]; isGenerating: boolean; currentModel: string; currentProviderId: string;
   colors: ReturnType<typeof useColors>;
+  onRegenerate?: () => void;
 }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyMsg = (id: string, content: string) => {
+    navigator.clipboard.writeText(content).catch(() => {});
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
   return (
     <div className="max-w-[780px] mx-auto py-6 px-4 space-y-5">
       {messages.map((msg) => (
@@ -434,8 +580,8 @@ function ChatMessages({ messages, isGenerating, currentModel, currentProviderId,
             )}
             <div
               className={cn(
-                "rounded-[14px] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                msg.role === "user" ? "rounded-br-[4px]" : ""
+                "rounded-[14px] px-4 py-3 text-sm leading-relaxed",
+                msg.role === "user" ? "rounded-br-[4px] whitespace-pre-wrap" : ""
               )}
               style={
                 msg.role === "user"
@@ -443,20 +589,32 @@ function ChatMessages({ messages, isGenerating, currentModel, currentProviderId,
                   : { background: c.assistantBubble, color: c.assistantText }
               }
             >
-              {msg.content}
+              {msg.role === "user" ? msg.content : <MdText text={msg.content} />}
             </div>
             {msg.role === "assistant" && (
               <div className="flex items-center gap-1 mt-1.5 opacity-0 hover:opacity-100 transition-opacity">
-                {[
-                  { Icon: Copy, title: "Копировать" },
-                  { Icon: RefreshCw, title: "Регенерировать" },
-                  { Icon: ThumbsUp, title: "Нравится" },
-                  { Icon: ThumbsDown, title: "Не нравится" },
-                ].map(({ Icon, title }) => (
-                  <button key={title} className="w-7 h-7 rounded-md flex items-center justify-center transition-colors" style={{ color: c.textSecondary }} title={title}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
+                <button
+                  onClick={() => copyMsg(msg.id, msg.content)}
+                  className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
+                  style={{ color: copiedId === msg.id ? c.textAccent : c.textSecondary }}
+                  title="Копировать"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={onRegenerate}
+                  className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
+                  style={{ color: c.textSecondary }}
+                  title="Регенерировать"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+                <button className="w-7 h-7 rounded-md flex items-center justify-center transition-colors" style={{ color: c.textSecondary }} title="Нравится">
+                  <ThumbsUp className="w-3.5 h-3.5" />
+                </button>
+                <button className="w-7 h-7 rounded-md flex items-center justify-center transition-colors" style={{ color: c.textSecondary }} title="Не нравится">
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </div>
