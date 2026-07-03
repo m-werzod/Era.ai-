@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, Paperclip, Send, Globe, Brain, Copy, RefreshCw, ThumbsUp, ThumbsDown, Settings, PenLine, Lightbulb, Code, Languages, Search, BarChart3 } from "lucide-react";
 import { textProviders, textQuickActions } from "@/entities/ai-model";
-import { streamChatCompletion, type ChatMessage } from "@/services/aiApi";
+import { streamAI, type ChatMessage } from "@/services/aiApi";
 import { TextModelSelector } from "@/features/model-picker";
 import { ModelIcon } from "@/features/model-picker";
 import { ModelGlyph } from "@/shared/ui/era/ModelGlyph";
@@ -152,7 +152,7 @@ const TextPage = () => {
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
-      const stream = streamChatCompletion(subModelId, history, systemPrompt || undefined);
+      const stream = streamAI(providerId, subModelId, history, systemPrompt || undefined);
       for await (const chunk of stream) {
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m)),

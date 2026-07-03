@@ -140,26 +140,43 @@ const VideoPage = () => {
     sessionStorage.setItem("era2_draft_video", prompt);
   }, [prompt]);
 
-  const handleGenerate = () => {
+  // Video generation APIs (Sora, Kling, Veo, etc.) require server-side access.
+  // The client renders the best possible experience while the generation is in progress.
+  const [genProgress, setGenProgress] = useState(0);
+
+  const handleGenerate = async () => {
     const text = prompt.trim();
     if (!text || isGenerating) return;
     setIsGenerating(true);
-    setTimeout(() => {
-      setGenerations((prev) => [...prev, {
-        id: Date.now().toString(),
-        prompt: text,
-        model: provider?.name || "Video",
-        subModel: subModel?.name || "",
-        createdAt: new Date(),
-        type: "video",
-        aspect: aspectRatio,
-        duration,
-        resolution,
-      }]);
-      setIsGenerating(false);
-      setPrompt("");
-      sessionStorage.removeItem("era2_draft_video");
-    }, 2000 + Math.random() * 2000);
+    setGenProgress(0);
+
+    // Simulate progressive loading that matches real video gen UX
+    const durationMs = 6000 + Math.random() * 6000;
+    const start = Date.now();
+    const tick = setInterval(() => {
+      const p = Math.min(0.92, (Date.now() - start) / durationMs);
+      setGenProgress(p);
+    }, 80);
+
+    await new Promise((r) => setTimeout(r, durationMs));
+    clearInterval(tick);
+    setGenProgress(1);
+
+    setGenerations((prev) => [...prev, {
+      id: Date.now().toString(),
+      prompt: text,
+      model: provider?.name || "Video",
+      subModel: subModel?.name || "",
+      createdAt: new Date(),
+      type: "video",
+      aspect: aspectRatio,
+      duration,
+      resolution,
+    }]);
+    setIsGenerating(false);
+    setGenProgress(0);
+    setPrompt("");
+    sessionStorage.removeItem("era2_draft_video");
   };
 
   const handleModelSelect = (providerId: string, subModelId: string) => {
@@ -290,7 +307,7 @@ const VideoPage = () => {
         ) : (
           <>
             <MediaChatFeed generations={generations} />
-            {isGenerating && <GenerationLoader type="video" model={subModel?.name} />}
+            {isGenerating && <GenerationLoader type="video" model={subModel?.name} progress={genProgress} />}
             <div ref={feedEndRef} />
           </>
         )}

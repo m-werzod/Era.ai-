@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Play, Plus, Zap, Settings2, Smartphone, Film, Mic, Megaphone, Headphones, Globe, Music, Volume2, Languages, AudioLines, Sparkles } from "lucide-react";
+import { ChevronDown, Play, Plus, Zap, Settings2, Smartphone, Film, Mic, Megaphone, Headphones, Globe, Music, Volume2, Languages, AudioLines, Sparkles, AlertCircle } from "lucide-react";
+import { textToSpeech } from "@/services/aiApi";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import { PillDropdown } from "@/features/model-picker";
@@ -122,6 +123,7 @@ const AudioPage = () => {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [generations, setGenerations] = useState<MediaGeneration[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
   
@@ -163,11 +165,49 @@ const AudioPage = () => {
   const currentModelName = isEL ? "ElevenLabs" : "Suno";
   const currentSubName = isEL ? elModel : `Suno ${sunoVersion}`;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     const text = prompt.trim();
     if (!text || isGenerating) return;
     setIsGenerating(true);
-    setTimeout(() => {
+    setAudioError(null);
+
+    if (isEL) {
+      try {
+        const audioUrl = await textToSpeech(text, selectedVoice, "eleven_multilingual_v2");
+        setGenerations((prev) => [...prev, {
+          id: Date.now().toString(),
+          prompt: text,
+          model: currentModelName,
+          subModel: currentSubName,
+          createdAt: new Date(),
+          type: "audio",
+          audioUrl,
+          audioDuration: "0:18",
+        }]);
+        setPrompt("");
+        sessionStorage.removeItem("era2_draft_audio");
+      } catch (err) {
+        if (err instanceof Error && err.message === "NO_KEY") {
+          // Demo mode — show placeholder with duration
+          await new Promise((r) => setTimeout(r, 1800));
+          setGenerations((prev) => [...prev, {
+            id: Date.now().toString(),
+            prompt: text,
+            model: currentModelName,
+            subModel: currentSubName,
+            createdAt: new Date(),
+            type: "audio",
+            audioDuration: "0:18",
+          }]);
+          setPrompt("");
+          sessionStorage.removeItem("era2_draft_audio");
+        } else {
+          setAudioError(err instanceof Error ? err.message : "Ошибка генерации");
+        }
+      }
+    } else {
+      // Suno — no public API; simulate with placeholder
+      await new Promise((r) => setTimeout(r, 2500 + Math.random() * 1500));
       setGenerations((prev) => [...prev, {
         id: Date.now().toString(),
         prompt: text,
@@ -175,12 +215,13 @@ const AudioPage = () => {
         subModel: currentSubName,
         createdAt: new Date(),
         type: "audio",
-        audioDuration: isEL ? "0:18" : sunoDuration === "До 1 минуты" ? "0:58" : sunoDuration === "До 2 минут" ? "1:54" : "3:42",
+        audioDuration: sunoDuration === "До 1 минуты" ? "0:58" : sunoDuration === "До 2 минут" ? "1:54" : "3:42",
       }]);
-      setIsGenerating(false);
       setPrompt("");
       sessionStorage.removeItem("era2_draft_audio");
-    }, 2000 + Math.random() * 2000);
+    }
+
+    setIsGenerating(false);
   };
 
   return (
@@ -440,6 +481,16 @@ const AudioPage = () => {
         </div>
         </div>
       </div>
+
+      {/* Error banner */}
+      {audioError && (
+        <div className="shrink-0 mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}>
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{audioError}</span>
+          <button onClick={() => setAudioError(null)} className="opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* ─── Sticky input area ─── */}
       <div ref={inputAreaRef} className="shrink-0 px-4 lg:px-6 pb-4 pt-1.5 bg-[var(--bg-primary)] relative z-[1]">

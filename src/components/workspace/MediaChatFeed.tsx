@@ -1,5 +1,6 @@
-import { Play, Copy, Share2, Download, Heart } from "lucide-react";
+import { Play, Pause, Copy, Share2, Download, Heart } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useRef } from "react";
 import { useCopyToast } from "@/features/copy-toast";
 import { ModelGlyph } from "@/shared/ui/era/ModelGlyph";
 import { Placeholder } from "@/shared/ui/era";
@@ -21,6 +22,7 @@ export interface MediaGeneration {
   resolution?: string;
   // audio
   audioDuration?: string;
+  audioUrl?: string;
 }
 
 interface Props {
@@ -32,9 +34,135 @@ function formatTime(d: Date) {
 }
 
 /* Deterministic waveform bars */
-const WAVE_BARS = Array.from({ length: 28 }, (_, i) =>
-  Math.round(35 + Math.abs(Math.sin(i * 1.7)) * 60)
+const WAVE_BARS = Array.from({ length: 36 }, (_, i) =>
+  Math.round(22 + Math.abs(Math.sin(i * 1.7)) * 65 + Math.abs(Math.cos(i * 0.9)) * 15),
 );
+
+function AudioResult({ gen }: { gen: MediaGeneration }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) { el.pause(); setPlaying(false); }
+    else { el.play(); setPlaying(true); }
+  };
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+  if (gen.audioUrl) {
+    return (
+      <div
+        className="rounded-2xl p-4 space-y-3"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-primary)" }}
+      >
+        <audio
+          ref={audioRef}
+          src={gen.audioUrl}
+          onTimeUpdate={() => {
+            const el = audioRef.current;
+            if (el) setProgress(el.currentTime / (el.duration || 1));
+          }}
+          onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+          onEnded={() => { setPlaying(false); setProgress(0); }}
+        />
+
+        {/* Waveform + play row */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggle}
+            className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white transition-transform hover:scale-105"
+            style={{ background: "linear-gradient(135deg, hsl(var(--primary)), #ff7a3d)", boxShadow: "0 4px 14px rgba(232,84,32,0.4)" }}
+          >
+            {playing
+              ? <Pause className="w-4 h-4" fill="currentColor" />
+              : <Play className="w-4 h-4 ml-0.5" fill="currentColor" />}
+          </button>
+
+          {/* Animated waveform */}
+          <div className="flex-1 flex items-center gap-[2px] h-10 overflow-hidden">
+            {WAVE_BARS.map((h, i) => {
+              const filled = i / WAVE_BARS.length < progress;
+              return (
+                <div
+                  key={i}
+                  className="w-[3px] rounded-full shrink-0 transition-all"
+                  style={{
+                    height: `${Math.max(15, playing ? h * (0.6 + 0.4 * Math.sin(Date.now() / 200 + i)) : h)}%`,
+                    background: filled
+                      ? "linear-gradient(to top, hsl(var(--primary)), #ff7a3d)"
+                      : "color-mix(in oklab, hsl(var(--muted-foreground)) 35%, transparent)",
+                    animation: playing ? `pulse ${0.4 + (i % 5) * 0.08}s ease-in-out infinite alternate` : "none",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <span className="text-[11px] font-mono tabular-nums shrink-0" style={{ color: "var(--text-tertiary)" }}>
+            {playing || progress > 0 ? fmt(progress * duration) : fmt(duration)} / {fmt(duration)}
+          </span>
+        </div>
+
+        {/* Seek bar */}
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.001}
+          value={progress}
+          onChange={(e) => {
+            const el = audioRef.current;
+            const v = parseFloat(e.target.value);
+            if (el) el.currentTime = v * (el.duration || 0);
+            setProgress(v);
+          }}
+          className="w-full h-1 rounded-full appearance-none cursor-pointer"
+          style={{ accentColor: "hsl(var(--primary))" }}
+        />
+
+        <a
+          href={gen.audioUrl}
+          download={`era2-audio-${gen.id}.mp3`}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Скачать MP3
+        </a>
+      </div>
+    );
+  }
+
+  /* Placeholder when no real audio yet */
+  return (
+    <div
+      className="rounded-xl p-3 flex items-center gap-3"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border-primary)" }}
+    >
+      <button
+        className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
+        style={{ background: "hsl(var(--primary))" }}
+      >
+        <Play className="w-4 h-4 text-white ml-0.5" fill="currentColor" />
+      </button>
+      <div className="flex-1 flex items-center gap-[2px] h-9">
+        {WAVE_BARS.map((h, i) => (
+          <span
+            key={i}
+            className="w-[3px] rounded-sm"
+            style={{ height: `${h}%`, background: "hsl(var(--primary) / 0.55)" }}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-[11px] tabular-nums shrink-0" style={{ color: "var(--text-tertiary)" }}>
+        {gen.audioDuration || "0:30"}
+      </span>
+    </div>
+  );
+}
 
 function ImageResult({ gen }: { gen: MediaGeneration }) {
   const images = gen.images && gen.images.length > 0 ? gen.images : [{ width: 1024, height: 1024 }];
@@ -97,34 +225,6 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
           {gen.duration}
         </span>
       )}
-    </div>
-  );
-}
-
-function AudioResult({ gen }: { gen: MediaGeneration }) {
-  return (
-    <div
-      className="rounded-xl p-3 flex items-center gap-3"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border-primary)" }}
-    >
-      <button
-        className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
-        style={{ background: "hsl(var(--primary))" }}
-      >
-        <Play className="w-4 h-4 text-white ml-0.5" fill="currentColor" />
-      </button>
-      <div className="flex-1 flex items-center gap-[2px] h-9">
-        {WAVE_BARS.map((h, i) => (
-          <span
-            key={i}
-            className="w-[3px] rounded-sm"
-            style={{ height: `${h}%`, background: "hsl(var(--primary) / 0.55)" }}
-          />
-        ))}
-      </div>
-      <span className="font-mono text-[11px] tabular-nums shrink-0" style={{ color: "var(--text-tertiary)" }}>
-        {gen.audioDuration || "0:30"}
-      </span>
     </div>
   );
 }
