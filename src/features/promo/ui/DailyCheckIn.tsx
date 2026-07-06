@@ -23,6 +23,15 @@ export function DailyCheckIn() {
     const today = new Date().toDateString();
     if (last === today) return;
 
+    // First-ever visit: silently start the streak instead of popping a
+    // full-screen modal over someone who hasn't tried the product yet — it
+    // was covering the generate button seconds after landing on the page.
+    if (last === null) {
+      localStorage.setItem("era2_checkin_date", today);
+      localStorage.setItem("era2_checkin_streak", "1");
+      return;
+    }
+
     const savedStreak = parseInt(localStorage.getItem("era2_checkin_streak") || "0");
     const yesterday = new Date(Date.now() - 86400000).toDateString();
     const newStreak = last === yesterday ? Math.min(savedStreak + 1, 7) : 1;

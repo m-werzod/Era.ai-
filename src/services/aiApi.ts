@@ -340,42 +340,72 @@ export const streamChatCompletion = (id: string, msgs: ChatMessage[], sys?: stri
 
 // ─── Image generation ─────────────────────────────────────────────────────────
 
-function pollinationsImageUrl(prompt: string, aspect = "1:1"): string {
-  // Use "turbo" model (SDXL-Turbo) — generates in 2-5 s vs 20-60 s for flux
-  // Dimensions chosen to stay under 768px on longest side for speed
+export interface ImageGenOptions {
+  quality?: string;   // "1K" | "2K" | "4K"
+  quantity?: number;  // number of images to produce
+  turbo?: boolean;    // true = fast/lower-fidelity, false = best quality
+}
+
+function pollinationsImageUrl(prompt: string, aspect = "1:1", opts: ImageGenOptions = {}): string {
+  const { quality = "2K", turbo = false } = opts;
+
+  // "flux" (FLUX.1-schnell) is far more photorealistic/detailed than the legacy
+  // "turbo" (SDXL-Turbo) model — only trade quality for speed when Turbo is ON.
+  const model = turbo ? "turbo" : "flux";
+
+  // Long-side resolution scales with the requested quality tier.
+  const base = quality === "4K" ? 1600 : quality === "1K" ? 768 : 1152;
   const [w, h] =
-    aspect === "16:9" || aspect === "21:9" ? [768, 432]  :
-    aspect === "9:16" || aspect === "4:5"  ? [432, 768]  :
-    aspect === "4:3"                       ? [768, 576]  :
-    aspect === "3:4"                       ? [576, 768]  :
-                                             [512, 512];
+    aspect === "16:9" || aspect === "21:9" ? [base, Math.round(base * 9 / 16)] :
+    aspect === "9:16" || aspect === "4:5"  ? [Math.round(base * 9 / 16), base] :
+    aspect === "4:3"                       ? [base, Math.round(base * 3 / 4)] :
+    aspect === "3:4"                       ? [Math.round(base * 3 / 4), base] :
+                                             [base, base];
   const seed = Math.floor(Math.random() * 999_999);
   return (
     `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=turbo`
+    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=${model}`
   );
 }
 
-export async function generateImageDallE(prompt: string, aspect = "1:1"): Promise<string[]> {
-  if (!K.openai) return [pollinationsImageUrl(prompt, aspect)];
+function gptImageSize(aspect: string): string {
+  if (["16:9", "21:9", "3:2", "5:4"].includes(aspect)) return "1536x1024";
+  if (["9:16", "4:5", "3:4", "2:3"].includes(aspect)) return "1024x1536";
+  return "1024x1024";
+}
 
+export async function generateImageDallE(
+  prompt: string, aspect = "1:1", opts: ImageGenOptions = {},
+): Promise<string[]> {
+  const { quality = "2K", quantity = 1, turbo = false } = opts;
+
+  if (!K.openai) {
+    return Array.from({ length: quantity }, () => pollinationsImageUrl(prompt, aspect, { quality, turbo }));
+  }
+
+  // gpt-image-1 — OpenAI's current-generation image model (replaces dall-e-3),
+  // notably better photorealism and prompt adherence. Always returns b64_json.
   const res = await fetchWithTimeout(
     "https://api.openai.com/v1/images/generations",
     {
       method: "POST",
       headers: { Authorization: `Bearer ${K.openai}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "dall-e-3", prompt, n: 1,
-        size: (aspect === "16:9" || aspect === "21:9") ? "1792x1024" :
-              (aspect === "9:16" || aspect === "4:5" || aspect === "3:4") ? "1024x1792" : "1024x1024",
-        response_format: "url",
+        model: "gpt-image-1",
+        prompt,
+        n: Math.min(Math.max(quantity, 1), 4),
+        size: gptImageSize(aspect),
+        quality: quality === "4K" ? "high" : quality === "1K" ? "low" : "medium",
       }),
     },
-    60_000,
+    120_000,
   );
-  if (!res.ok) return [pollinationsImageUrl(prompt, aspect)]; // fall back on any error
-  const data = await res.json() as { data: Array<{ url: string }> };
-  return data.data.map((d) => d.url);
+  if (!res.ok) {
+    // fall back on any error (e.g. org not verified for gpt-image-1, quota, etc.)
+    return Array.from({ length: quantity }, () => pollinationsImageUrl(prompt, aspect, { quality, turbo }));
+  }
+  const data = await res.json() as { data: Array<{ url?: string; b64_json?: string }> };
+  return data.data.map((d) => d.url ?? `data:image/png;base64,${d.b64_json}`);
 }
 
 // ─── Text-to-Speech ───────────────────────────────────────────────────────────
@@ -435,3 +465,75 @@ export async function textToSpeech(
 }
 
 export function hasOpenAIKey(): boolean { return !!K.openai; }
+export function hasGoogleKey(): boolean { return !!K.google; }
+
+// ─── Video generation (Google Veo 3, via Gemini API) ─────────────────────────
+
+const VEO_MODEL = "veo-3.0-generate-001";
+
+function veoAspectRatio(aspect?: string): string {
+  return aspect === "9:16" ? "9:16" : "16:9"; // Veo currently only outputs these two
+}
+
+/**
+ * Generates a real AI video with Google Veo 3.
+ * Requires VITE_GOOGLE_API_KEY on a project with Veo access/billing enabled —
+ * throws otherwise so the caller can fall back to a preview experience.
+ * The key is used directly from the browser (no backend in this app), so it
+ * is visible in network requests and every call is billed on that key.
+ */
+export async function generateVideoVeo(prompt: string, aspect = "16:9"): Promise<string> {
+  if (!K.google) throw new Error("NO_KEY");
+
+  const startRes = await fetchWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${VEO_MODEL}:predictLongRunning`,
+    {
+      method: "POST",
+      headers: { "x-goog-api-key": K.google, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: { aspectRatio: veoAspectRatio(aspect) },
+      }),
+    },
+    30_000,
+  );
+  if (!startRes.ok) {
+    const e = await startRes.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(e.error?.message ?? `Veo ${startRes.status}`);
+  }
+  const { name } = await startRes.json() as { name: string };
+  if (!name) throw new Error("Veo не вернул operation id");
+
+  // Veo generation is a long-running operation — poll until done (typically 1-3 min).
+  const deadline = Date.now() + 6 * 60_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 5_000));
+
+    const opRes = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/${name}`,
+      { headers: { "x-goog-api-key": K.google } },
+      20_000,
+    );
+    if (!opRes.ok) continue;
+
+    const op = await opRes.json() as {
+      done?: boolean;
+      error?: { message?: string };
+      response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } };
+    };
+    if (op.error) throw new Error(op.error.message ?? "Veo generation failed");
+    if (!op.done) continue;
+
+    const uri = op.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+    if (!uri) throw new Error("Veo вернул пустой результат");
+
+    const videoRes = await fetchWithTimeout(
+      `${uri}${uri.includes("?") ? "&" : "?"}key=${K.google}`,
+      {},
+      60_000,
+    );
+    if (!videoRes.ok) throw new Error(`Не удалось скачать видео (${videoRes.status})`);
+    return URL.createObjectURL(await videoRes.blob());
+  }
+  throw new Error("Превышено время ожидания генерации видео");
+}

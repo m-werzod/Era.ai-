@@ -12,8 +12,14 @@ import { ProgressBar } from "./ProgressBar";
 
 const QUEUE_PATH = "/queue";
 const MINI_LIST_LIMIT = 3;
-/** Routes where the floating bar is suppressed (redundant or chrome-less). */
-const HIDDEN_PATHS = new Set([QUEUE_PATH, "/auth"]);
+/**
+ * Routes where the floating bar is suppressed (redundant or chrome-less).
+ * The four workspace pages already show their own inline GenerationLoader
+ * pinned above the composer — the floating bar rendered full-width on top
+ * of that same composer on mobile (it sits `fixed inset-x-0 bottom-0`),
+ * blocking the Generate button behind an unrelated card.
+ */
+const HIDDEN_PATHS = new Set([QUEUE_PATH, "/auth", "/text", "/design", "/video", "/audio"]);
 
 const generationsWord = (n: number): string =>
   pluralize(n, ["генерация", "генерации", "генераций"]);

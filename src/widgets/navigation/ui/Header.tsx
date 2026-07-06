@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "@/shared/routing";
 import { Clock, Menu, Moon, Search, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -25,11 +26,29 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
   const { isAuthed } = useAuth();
   const { setOpen } = useCommandPalette();
   const { t } = useTranslation();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Workspace pages size their content as `100dvh - var(--header-height)`. The
+  // promo banner (unauthenticated only) adds extra height on top of the fixed
+  // 64px header, so we measure the real combined height instead of assuming
+  // a constant — otherwise mobile content (incl. the generate button) ends up
+  // taller than the viewport and gets pushed off-screen.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const setHeight = () => {
+      document.documentElement.style.setProperty("--header-height", `${el.offsetHeight}px`);
+    };
+    setHeight();
+    const ro = new ResizeObserver(setHeight);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isAuthed]);
 
   return (
-    <>
+    <div ref={wrapperRef}>
       {!isAuthed && <PromoBanner />}
-      <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-4 md:px-6 bg-background/85 backdrop-blur-md border-b border-border" style={{ height: "var(--header-height)" }}>
+      <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-4 md:px-6 bg-background/85 backdrop-blur-md border-b border-border">
       {/* Left: burger + logo */}
       <div className="flex items-center gap-3">
         {showBurger && isAuthed && (
@@ -145,6 +164,6 @@ export function Header({ onToggleSidebar, showBurger = true }: HeaderProps) {
         )}
       </div>
       </header>
-    </>
+    </div>
   );
 }

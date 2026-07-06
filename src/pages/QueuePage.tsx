@@ -8,7 +8,7 @@ export default function QueuePage() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100vh-var(--header-height,64px))]">
+    <div className="min-h-[calc(100dvh-var(--header-height,64px))]">
       <GenerationQueue />
     </div>
   );

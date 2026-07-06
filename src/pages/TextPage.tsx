@@ -225,7 +225,7 @@ const TextPage = () => {
 
   return (
     <ErrorBoundary>
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px))] mesh-background" style={{ background: c.bg }}>
+    <div className="flex flex-col h-[calc(100dvh-var(--header-height,64px))] mesh-background" style={{ background: c.bg }}>
       {/* ─── Chat area ─── */}
       <div className="flex-1 overflow-y-auto relative z-[1]">
         <div className="sticky top-0 z-20 flex justify-center py-2" style={{ background: "color-mix(in oklab, var(--c-bg) 85%, transparent)", backdropFilter: "blur(12px)" }}>
@@ -326,7 +326,7 @@ const TextPage = () => {
               style={{ color: c.textPrimary, fontFamily: '"DM Sans", sans-serif' }}
             />
 
-            <div className="flex items-center gap-2 mt-2 pt-2 overflow-x-auto no-scrollbar" style={{ borderTop: `1px solid ${c.divider}` }}>
+            <div className="flex items-center gap-2 mt-2 pt-2 flex-wrap" style={{ borderTop: `1px solid ${c.divider}` }}>
               <button
                 className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                 style={{ color: c.textSecondary }}

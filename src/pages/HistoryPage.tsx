@@ -57,7 +57,7 @@ const HistoryPage = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-var(--header-height,64px))]">
+    <div className="min-h-[calc(100dvh-var(--header-height,64px))]">
       <div className="max-w-[1200px] mx-auto px-4 pt-6 pb-4">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">История</h1>
         <p className="text-sm text-muted-foreground mt-1">

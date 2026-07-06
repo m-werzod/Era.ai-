@@ -52,7 +52,7 @@ export function WelcomeBlock({
   const cards = scenarios.slice(0, 6);
 
   return (
-    <div className="flex flex-col items-center px-4 py-10 min-h-[calc(100vh-var(--header-height,64px)-200px)]">
+    <div className="flex flex-col items-center px-4 py-10 min-h-[calc(100dvh-var(--header-height,64px)-200px)]">
       {/* ── Model hero ── */}
       <motion.div
         className="relative flex items-center justify-center mb-5"

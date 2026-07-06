@@ -2,7 +2,7 @@ import { Skeleton } from "@/shared/ui/skeleton";
 
 export function PageLoader() {
   return (
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px))]">
+    <div className="flex flex-col h-[calc(100dvh-var(--header-height,64px))]">
       <div className="flex justify-center py-3">
         <Skeleton className="h-9 w-[280px] rounded-full" />
       </div>

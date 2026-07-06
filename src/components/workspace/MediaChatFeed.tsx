@@ -1,4 +1,4 @@
-import { Play, Pause, Copy, Share2, Download, Heart, RefreshCw, Volume2 } from "lucide-react";
+import { Play, Pause, Copy, Share2, Download, Heart, RefreshCw, Volume2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { useCopyToast } from "@/features/copy-toast";
@@ -213,20 +213,25 @@ function AudioResult({ gen }: { gen: MediaGeneration }) {
 function ImageResult({ gen }: { gen: MediaGeneration }) {
   const images = gen.images && gen.images.length > 0 ? gen.images : [{ width: 512, height: 512 }];
   const aspect = gen.aspect?.replace(":", "/") ?? "1/1";
-  const [status, setStatus] = useState<Record<number, "loading" | "done" | "error">>({});
+  const [status, setStatus] = useState<Record<number, "pending" | "loading" | "done" | "error">>({});
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     gen.imageUrls?.forEach((_, i) => {
-      if ((status[i] ?? "loading") === "loading") {
-        timers.push(
-          setTimeout(
-            () => setStatus((p) => (p[i] === "loading" ? { ...p, [i]: "error" } : p)),
-            90_000,
-          ),
-        );
-      }
+      // Stagger when each tile actually starts fetching — firing several
+      // requests to the free image API in the same tick makes rate-limiting
+      // (429s) far more likely than spacing them out a little.
+      const startDelay = i * 500;
+      timers.push(
+        setTimeout(() => setStatus((p) => (p[i] ? p : { ...p, [i]: "loading" })), startDelay),
+      );
+      timers.push(
+        setTimeout(
+          () => setStatus((p) => (p[i] === "loading" ? { ...p, [i]: "error" } : p)),
+          startDelay + 90_000,
+        ),
+      );
     });
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,7 +246,7 @@ function ImageResult({ gen }: { gen: MediaGeneration }) {
     <div className={`grid gap-2 ${images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
       {images.map((img, i) => {
         const url = gen.imageUrls?.[i];
-        const st = status[i] ?? "loading";
+        const st = status[i] ?? (i === 0 ? "loading" : "pending");
         return (
           <div
             key={i}
@@ -250,7 +255,7 @@ function ImageResult({ gen }: { gen: MediaGeneration }) {
           >
             {url && st !== "error" ? (
               <>
-                {st === "loading" && (
+                {(st === "loading" || st === "pending") && (
                   <div
                     className="absolute inset-0 flex flex-col items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, var(--bg-card), var(--bg-pill))" }}
@@ -259,15 +264,18 @@ function ImageResult({ gen }: { gen: MediaGeneration }) {
                     <span className="text-[11px] font-mono opacity-50">Генерирую… ~5–10с</span>
                   </div>
                 )}
-                <img
-                  key={retryKey}
-                  src={url}
-                  alt={gen.prompt}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
-                  style={{ opacity: st === "done" ? 1 : 0 }}
-                  onLoad={() => setStatus((p) => ({ ...p, [i]: "done" }))}
-                  onError={() => setStatus((p) => ({ ...p, [i]: "error" }))}
-                />
+                {/* Only mount the <img> (and thus start its network request) once its staggered turn arrives */}
+                {st !== "pending" && (
+                  <img
+                    key={retryKey}
+                    src={url}
+                    alt={gen.prompt}
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+                    style={{ opacity: st === "done" ? 1 : 0 }}
+                    onLoad={() => setStatus((p) => ({ ...p, [i]: "done" }))}
+                    onError={() => setStatus((p) => ({ ...p, [i]: "error" }))}
+                  />
+                )}
                 {st === "done" && (
                   <a
                     href={url}
@@ -344,6 +352,8 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
   // Two independent booleans — much simpler than a string state machine
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   const src = gen.videoUrl ?? pickDemoVideo(gen.prompt);
   const isDemo = !gen.videoUrl;
@@ -358,7 +368,7 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
 
   const toggle = () => {
     const el = videoRef.current;
-    if (!el || isBuffering) return; // ignore clicks while buffering
+    if (!el || isBuffering || failed) return; // ignore clicks while buffering or broken
     if (isPlaying) {
       el.pause();
     } else {
@@ -370,12 +380,19 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
     }
   };
 
+  const retry = () => {
+    setFailed(false);
+    setIsBuffering(false);
+    setRetryKey((k) => k + 1); // remounts <video> so it re-attempts the network fetch
+  };
+
   return (
     <div
       className="relative rounded-xl overflow-hidden"
       style={{ ...aspectStyle, background: "#0a0a1a" }}
     >
       <video
+        key={retryKey}
         ref={videoRef}
         src={src}
         /* poster shows instantly — no black screen before play */
@@ -392,7 +409,7 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
         /* onPlaying fires when first decoded frame is actually rendered */
         onPlaying={() => { setIsPlaying(true); setIsBuffering(false); }}
         onCanPlay={() => setIsBuffering(false)}
-        onError={() => setIsBuffering(false)}
+        onError={() => { setIsBuffering(false); setFailed(true); }}
       />
 
       {/* Subtle vignette so controls are always readable */}
@@ -406,35 +423,54 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
         />
       )}
 
-      {/* Single clickable overlay — shows play OR spinner OR pause-on-hover */}
-      <button
-        onClick={toggle}
-        className="absolute inset-0 flex items-center justify-center"
-        style={{ background: "transparent", cursor: isBuffering ? "wait" : "pointer" }}
-        aria-label={isPlaying ? "Пауза" : "Воспроизвести"}
-      >
-        {isBuffering ? (
-          /* Spinner while buffering after play clicked */
-          <div className="w-14 h-14 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
-        ) : isPlaying ? (
-          /* Pause button visible only on hover while playing */
-          <div className="opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center w-12 h-12 rounded-full bg-black/50">
-            <Pause className="w-5 h-5 text-white" fill="currentColor" />
-          </div>
-        ) : (
-          /* Play button — always visible when not playing and not buffering */
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105"
-            style={{
-              background: "rgba(232,84,32,0.95)",
-              boxShadow:
-                "0 8px 32px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.15)",
-            }}
+      {failed ? (
+        /* Visible error state — previously onError just silently cleared the
+           spinner, leaving a video that looked idle but could never play. */
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
+          <AlertCircle className="w-7 h-7 text-white/70" />
+          <span className="text-[12px] text-white/80">Видео не удалось загрузить</span>
+          <button
+            onClick={retry}
+            className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors"
+            style={{ background: "rgba(232,84,32,0.9)", color: "white" }}
           >
-            <Play className="w-7 h-7 text-white ml-1" fill="currentColor" />
-          </div>
-        )}
-      </button>
+            <RefreshCw className="w-3 h-3" /> Повторить
+          </button>
+        </div>
+      ) : (
+        /* Single clickable overlay — shows play OR spinner OR pause-on-hover */
+        <button
+          onClick={toggle}
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ background: "transparent", cursor: isBuffering ? "wait" : "pointer" }}
+          aria-label={isPlaying ? "Пауза" : "Воспроизвести"}
+        >
+          {isBuffering ? (
+            /* Spinner while buffering after play clicked */
+            <div className="w-14 h-14 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+          ) : isPlaying ? (
+            /* Pause button visible only on hover while playing */
+            <div className="opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center w-12 h-12 rounded-full bg-black/50">
+              <Pause className="w-5 h-5 text-white" fill="currentColor" />
+            </div>
+          ) : (
+            /* Play button — always visible when not playing and not buffering */
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105"
+              style={{
+                background: "rgba(232,84,32,0.95)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.15)",
+              }}
+            >
+              <Play className="w-7 h-7 text-white ml-1" fill="currentColor" />
+            </div>
+          )}
+        </button>
+      )}
 
       {gen.duration && (
         <span className="absolute bottom-2 right-2 font-mono text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/70 text-white pointer-events-none z-10">
@@ -443,7 +479,7 @@ function VideoResult({ gen }: { gen: MediaGeneration }) {
       )}
       {isDemo && (
         <span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded font-medium bg-black/70 text-white/80 pointer-events-none z-10">
-          Демо-видео
+          Превью
         </span>
       )}
     </div>

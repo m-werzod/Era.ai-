@@ -177,7 +177,7 @@ const DesignPage = () => {
 
     try {
       // generateImageDallE falls back to Pollinations.ai when no key — always returns URLs
-      const urls = await generateImageDallE(text, aspectRatio);
+      const urls = await generateImageDallE(text, aspectRatio, { quality, quantity, turbo });
       setGenerations((prev) => [
         ...prev,
         {
@@ -187,7 +187,7 @@ const DesignPage = () => {
           subModel: subModel?.name || "",
           createdAt: new Date(),
           type: "image",
-          images: [{ width: w, height: h }],
+          images: urls.map(() => ({ width: w, height: h })),
           imageUrls: urls,
           aspect: aspectRatio,
           quality,
@@ -248,7 +248,7 @@ const DesignPage = () => {
 
   return (
     <ErrorBoundary>
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px))] mesh-background">
+    <div className="flex flex-col h-[calc(100dvh-var(--header-height,64px))] mesh-background">
       {/* Scrollable area: chat (welcome OR feed) + catalog below */}
       <div className="flex-1 overflow-y-auto w-full relative z-[1]">
         <div className="sticky top-0 z-20 flex justify-center py-2" style={{ background: "color-mix(in oklab, var(--c-bg) 85%, transparent)", backdropFilter: "blur(12px)" }}>

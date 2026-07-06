@@ -91,7 +91,7 @@ export function HistoryCard({ item, onClick, onToggleFavorite }: Props) {
         )}
 
         {type === "audio" && (
-          <div className="h-[80px] px-3 flex items-center gap-2 bg-secondary">
+          <div className="h-20 px-3 flex items-center gap-2 bg-secondary">
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}

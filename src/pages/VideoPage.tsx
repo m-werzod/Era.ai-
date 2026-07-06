@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
-import { Zap, Sparkles, Square, Clock, Monitor, Film, Music, User, Clapperboard, Smartphone, Heart, ChevronDown } from "lucide-react";
+import { Zap, Sparkles, Square, Clock, Monitor, Film, Music, User, Clapperboard, Smartphone, Heart, ChevronDown, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ModelGlyph } from "@/shared/ui/era/ModelGlyph";
 import { cn } from "@/shared/lib/utils";
 import { AttachmentButton } from "@/shared/ui/era";
 import { InlinePillDropdown } from "@/features/model-picker";
+import { generateVideoVeo, hasGoogleKey } from "@/services/aiApi";
 
 import { PromptSuggestions } from "@/components/workspace/PromptSuggestions";
 import { ModelCarousel } from "@/components/workspace/ModelCarousel";
@@ -105,9 +106,10 @@ const VideoPage = () => {
   
   const [generations, setGenerations] = useState<MediaGeneration[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
-  
+
   const [capsuleOpen, setCapsuleOpen] = useState(false);
 
   useEffect(() => {
@@ -140,8 +142,10 @@ const VideoPage = () => {
     sessionStorage.setItem("era2_draft_video", prompt);
   }, [prompt]);
 
-  // Video generation APIs (Sora, Kling, Veo, etc.) require server-side access.
-  // The client renders the best possible experience while the generation is in progress.
+  // Only the "Veo" provider is backed by a real model (Google Veo 3, when a
+  // Google API key with Veo access is configured). Every other provider here
+  // (Kling, Sora, Seedance, ...) has no real API wired up, so it renders an
+  // honest preview experience instead of pretending to call a real backend.
   const [genProgress, setGenProgress] = useState(0);
 
   const handleGenerate = async () => {
@@ -149,8 +153,42 @@ const VideoPage = () => {
     if (!text || isGenerating) return;
     setIsGenerating(true);
     setGenProgress(0);
+    setGenError(null);
 
-    // Simulate progressive loading that matches real video gen UX
+    if (selectedProviderId === "veo" && hasGoogleKey()) {
+      const tick = setInterval(() => {
+        setGenProgress((p) => Math.min(0.92, p + 0.01));
+      }, 1000);
+      try {
+        const videoUrl = await generateVideoVeo(text, aspectRatio);
+        clearInterval(tick);
+        setGenProgress(1);
+        setGenerations((prev) => [...prev, {
+          id: Date.now().toString(),
+          prompt: text,
+          model: provider?.name || "Video",
+          subModel: subModel?.name || "",
+          createdAt: new Date(),
+          type: "video",
+          aspect: aspectRatio,
+          duration,
+          resolution,
+          videoUrl,
+        }]);
+        setPrompt("");
+        sessionStorage.removeItem("era2_draft_video");
+      } catch (err) {
+        clearInterval(tick);
+        setGenError(err instanceof Error ? err.message : "Ошибка генерации видео");
+      } finally {
+        setIsGenerating(false);
+        setGenProgress(0);
+      }
+      return;
+    }
+
+    // No real backend for this provider (or no Google key set) — show a clearly
+    // labeled preview clip instead of a fake "generating" illusion with no payoff.
     const durationMs = 6000 + Math.random() * 6000;
     const start = Date.now();
     const tick = setInterval(() => {
@@ -234,7 +272,7 @@ const VideoPage = () => {
 
   return (
     <ErrorBoundary>
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px))] mesh-background">
+    <div className="flex flex-col h-[calc(100dvh-var(--header-height,64px))] mesh-background">
       {/* Scrollable area: chat (welcome OR feed) + catalog below */}
       <div className="flex-1 overflow-y-auto w-full relative z-[1]">
         <div className="sticky top-0 z-20 flex justify-center py-2" style={{ background: "color-mix(in oklab, var(--c-bg) 85%, transparent)", backdropFilter: "blur(12px)" }}>
@@ -323,6 +361,16 @@ const VideoPage = () => {
         )}
       </div>
 
+      {/* Error banner */}
+      {genError && (
+        <div className="shrink-0 mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}>
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{genError}</span>
+          <button onClick={() => setGenError(null)} className="opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
       {/* Sticky input area */}
       <div ref={inputAreaRef} className="shrink-0 px-4 lg:px-6 pb-4 pt-1.5 bg-[var(--bg-primary)] relative z-[1]">
         <div className="max-w-[780px] mx-auto">
@@ -403,7 +451,7 @@ const VideoPage = () => {
                 transition={{ duration: 0.15 }}
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isGenerating}
-                className="ml-auto inline-flex items-center gap-1.5 px-5 h-10 rounded-full gradient-accent text-white text-[14px] font-semibold shadow-[0_10px_30px_-10px_rgba(232,84,32,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] hover:opacity-90 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto sm:ml-auto justify-center inline-flex items-center gap-1.5 px-5 h-10 rounded-full gradient-accent text-white text-[14px] font-semibold shadow-[0_10px_30px_-10px_rgba(232,84,32,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] hover:opacity-90 transition-all disabled:opacity-50"
               >
                 <Sparkles className="w-3.5 h-3.5" /> Генерировать
                 <span className="inline-flex items-center gap-1 ml-1 font-mono tabular-nums">

@@ -79,7 +79,7 @@ export function PromptBlock({
         />
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 sm:overflow-visible sm:flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
         <TwoPanelModelSelector
           providers={selectorProviders}
           selectedProviderId={selectedProviderId}
@@ -143,7 +143,7 @@ export function PromptBlock({
         <button
           onClick={onGenerate}
           disabled={!prompt.trim()}
-          className="ml-auto inline-flex items-center gap-1.5 px-5 h-10 rounded-full gradient-accent text-white text-[14px] font-semibold shadow-[0_10px_30px_-10px_rgba(232,84,32,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] hover:opacity-90 transition-all disabled:opacity-50"
+          className="w-full sm:w-auto sm:ml-auto justify-center inline-flex items-center gap-1.5 px-5 h-10 rounded-full gradient-accent text-white text-[14px] font-semibold shadow-[0_10px_30px_-10px_rgba(232,84,32,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] hover:opacity-90 transition-all disabled:opacity-50"
         >
           <Sparkles className="w-3.5 h-3.5" /> Генерировать
           <span className="inline-flex items-center gap-1 ml-1 font-mono tabular-nums">
